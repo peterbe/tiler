@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block main %}
+<h1>Download</h1>
+
+<form>
+URL: <input name="url" style="font-size:150%;width:80%">
+<button>Go!</button>
+</form>
+
+<div id="progress" style="display:none">
+
+  <dl>
+    <dt>Expected size:</dt>
+    <dd><code id="expected_size"></code></dd>
+
+    <dt>Content type:</dt>
+    <dd><code id="content_type"></code></dd>
+
+    <dt>Left to download:</dt>
+    <dd><code id="left"></code></dd>
+
+    <dt>Downloaded so far:</dt>
+    <dd><code id="downloaded">0</code></dd>
+  </dl>
+
+</div>
+
+<div id="complete" style="display:none">
+
+  <h2 style="color:green">Done!</h2>
+  <h3><a href="" id="url"></a></h3>
+
+</div>
+
+
+<div id="error" style="display:none">
+
+  <h2 style="color:red">Error :(</h2>
+
+  <code id="errormessage"></code>
+
+</div>
+
+
+
+{% end %}
+
+{% block extra_js %}
+<script src="{{ static_url('download.js') }}"></script>
+{% end %}

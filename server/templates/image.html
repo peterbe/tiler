@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block body_tag %}data-image="{{ image_filename }}"{% end %}
+
+{% block css %}
+<link rel="stylesheet" href="{{ static_url('css/image.css') }}" type="text/css" >
+{% end %}
+
+
+{% block main %}
+    <div id="map">
+    </div>
+    <div id="nav">
+      <ul>
+        <li><a href="/"><strong>Tiler</strong></a></li>
+        <li><a href="/download">Download another</a></li>
+        <li><a href="" class="permalink">permalink</a>
+        <input name="permalink" class="permalink" style="display:none">
+        <a href="#" class="close-permalink" style="display:none">&times;</a>
+        </li>
+      </ul>
+    </div>
+
+{% end %}
+
+{% block extra_js %}
+    <script src="{{ static_url('libs/polymaps.js') }}"></script>
+    <script src="{{ static_url('map.js') }}"></script>
+    <script src="{{ static_url('stuff.js') }}"></script>
+{% end %}

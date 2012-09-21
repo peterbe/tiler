@@ -1,0 +1,104 @@
+/* http://meyerweb.com/eric/tools/css/reset/ */
+      /* v1.0 | 20080212 */
+      html,body,div,span,applet,object,iframe,
+      h1,h2,h3,h4,h5,h6,p,blockquote,pre,
+      a,abbr,acronym,address,big,cite,code,
+      del,dfn,em,font,img,ins,kbd,q,s,samp,
+      small,strike,strong,sub,sup,tt,var,
+      b,u,i,center,
+      dl,dt,dd,ol,ul,li,
+      fieldset,form,label,legend,
+      table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent;}
+      body{line-height:1;}
+      ol,ul{list-style:none;}
+      blockquote,q{quotes:none;}
+      blockquote:before,blockquote:after,
+      q:before,q:after{content:'';content:none;}
+      /* remember to define focus styles! */
+      :focus{outline:0;}
+      /* remember to highlight inserts somehow! */
+      ins{text-decoration:none;}
+      del{text-decoration:line-through;}
+      /* tables still need 'cellspacing="0"' in the markup */
+      table{border-collapse:collapse;border-spacing:0;}
+
+
+
+body,html {
+  height:100%;
+  overflow:hidden;
+  background-color: white;
+  font-family:Helvetica;
+  color:rgb(30,30,30);
+}
+/* Map compass tools */
+.compass .back {
+  fill: #000;
+  fill-opacity: .75;
+}
+ .compass .fore {
+  stroke: #c;
+  stroke-width: 1.5px;
+}
+ .compass rect.back.fore {
+  fill: #fff;
+  fill-opacity: .3;
+  stroke: #eee;
+  stroke-width: 1px;
+  shape-rendering: crispEdges;
+}
+ .compass .direction {
+  fill: none;
+}
+ .compass .chevron {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 5px;
+}
+ .compass .zoom .chevron {
+  stroke-width: 4px;
+}
+ .compass .active .chevron, .compass .chevron.active {
+  stroke: #fff;
+}
+ .compass.active .active .direction {
+  fill: #999;
+}
+ /* oh firefox... why you gotta be so weird and fussy about this... */
+ #map {
+	height: 100% !important;
+}
+ #map svg {
+  width:100%;
+  height: 100% !important;
+}
+
+#nav {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 5px 10px;
+  background: #111111;
+  border-top: #888888;
+  border-left: #888888;
+  color: #efefef;
+  border-bottom-left-radius: 10px;
+}
+ #nav a {
+  color: #888888;
+}
+g circle {
+  fill: #aa0000;
+  stroke: #fafafa;
+  stroke-width: 3px;
+}
+
+#nav ul li {
+  font-size: 80%;
+  display: inline;
+  margin-right: 6px;
+}
+#nav input.permalink {
+  font-size: 70%;
+  width: 300px;
+}
