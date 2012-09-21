@@ -9,29 +9,30 @@
     <meta name="viewport" content="width=device-width">
     
     <title>Tiler</title>
+    
     {% block css %}
-    <link rel="stylesheet" href="{{ static_url('css/style.css') }}" type="text/css">
+    <link rel="stylesheet" href="{{ static_url('css/foundation.min.css') }}">
+    <link rel="stylesheet" href="{{ static_url('css/app.css') }}">
+ 
+    <!-- IE Fix for HTML5 Tags -->
+    <!--[if lt IE 9]>
+      <script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <!--<link rel="stylesheet" href="{{ static_url('css/style.css') }}" type="text/css">-->
     {% end %}
 
     {% block extra_head %}
     {% end %}
   </head>
   <body {% block body_tag %}{% end %}>
+
+  
   {% block main %}
+  
   {% end %}
 
   <script src="{{ static_url('libs/jquery-1.8.0.min.js') }}"></script>
-  <!--
-    <script src="{{ static_url('libs/jstorage.js') }}"></script>
-    <script>
-    $(function() {
-      var username = $.jStorage.get('username', null);
-      if (username) {
-        console.log('logged in', username);
-      }
-    });
-    </script>
-  -->
+  <script src="{{ static_url('libs/modernizr.foundation.js') }}"></script>
 
   {% block extra_js %}
   {% end %}
