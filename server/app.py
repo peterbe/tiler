@@ -4,6 +4,7 @@ import os
 import tornado.httpserver
 import tornado.ioloop
 from tornado.options import define, options
+from tornado_utils.routes import route
 import redis.client
 import settings
 from resizer import main as resizer_main
@@ -35,29 +36,15 @@ def app():
         cookie_secret=settings.COOKIE_SECRET,
     )
 
-    return Application([
-        (r'/',
-         handlers.HomeHandler),
-        (r'/download',
-         handlers.DownloadHandler),
-        (r'/download/preview',
-         handlers.PreviewDownloadHandler),
-        (r'/download/progress',
-         handlers.ProgressDownloadHandler),
-        (r'/download/download',
-         handlers.ReallyDownloadHandler),
-        (r'/dropbox',
-         handlers.DropboxHandler),
-        (r'/(\w{9})',
-         handlers.ImageHandler),
-        (r'/browserid/',
-         handlers.BrowserIDAuthLoginHandler),
-        (r'/signout/',
-         handlers.SignoutHandler),
-        (r'/tiles/(?P<image>\w{1}/\w{2}/\w{6})/(?P<size>\d+)'
-         r'/(?P<zoom>\d+)/(?P<row>\d+),(?P<col>\d+).png',
-         handlers.TileHandler),
-    ], **app_settings)
+    routed_handlers = route.get_routes()
+    routed_handlers.append(
+          tornado.web.url(
+              '/.*?',
+              handlers.PageNotFoundHandler,
+              name='page_not_found')
+    )
+
+    return Application(routed_handlers, **app_settings)
 
 
 if __name__ == '__main__':

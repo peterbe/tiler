@@ -7,6 +7,7 @@ import uuid
 import tornado.web
 import tornado.gen
 import tornado.httpclient
+from tornado_utils.routes import route
 from utils import scale_and_crop, mkdir
 
 
@@ -17,6 +18,7 @@ class BaseHandler(tornado.web.RequestHandler):
         return self.application.redis
 
 
+@route('/', name='home')
 class HomeHandler(BaseHandler):
     def get(self):
         self.render('index.html')
@@ -27,6 +29,7 @@ class DropboxHandler(BaseHandler):
         self.render('dropbox.html')
 
 
+@route('/(\w{9})', 'image')
 class ImageHandler(BaseHandler):
     def get(self, filename):
         image_filename = (
@@ -39,6 +42,7 @@ class ImageHandler(BaseHandler):
         self.render('image.html', image_filename=image_filename)
 
 
+@route('/download', 'download')
 class DownloadHandler(BaseHandler):
 
     def get(self):
@@ -61,11 +65,14 @@ class DownloadHandler(BaseHandler):
         #    fileid[3:]
         #)
         destination += '/%s' % fileid[3:]
+        content_type = self.redis.get('contenttype:%s' % fileid)
+        print "content_type", repr(content_type), "JPG?"
         destination += '.jpg'  # XXX good enough?
 
         return destination
 
 
+@route('/download/preview', 'download_preview')
 class PreviewDownloadHandler(DownloadHandler):
 
     @tornado.web.asynchronous
@@ -79,13 +86,13 @@ class PreviewDownloadHandler(DownloadHandler):
             url,
             method='HEAD'
         )
-        # XXX can we find out if this was a image/jpeg or something?
         if not head_response.code == 200:
             self.write({'error': head_response.body})
             return
-
+        # XXX can we find out if this was a image/jpeg or something?
         expected_size = int(head_response.headers['Content-Length'])
         content_type = head_response.headers['Content-Type']
+        print "What about content_type", repr(content_type)
 
         fileid = uuid.uuid4().hex[:9]
         self.redis.set('fileid:%s' % fileid, url)
@@ -107,6 +114,7 @@ class PreviewDownloadHandler(DownloadHandler):
         self.finish()
 
 
+@route('/download/progress', 'download_progress')
 class ProgressDownloadHandler(DownloadHandler):
 
     def get(self):
@@ -126,6 +134,7 @@ class ProgressDownloadHandler(DownloadHandler):
         self.write(data)
 
 
+@route('/download/download', 'download_really')
 class ReallyDownloadHandler(DownloadHandler):
 
     @tornado.web.asynchronous
@@ -147,7 +156,7 @@ class ReallyDownloadHandler(DownloadHandler):
 
             with open(destination, 'wb') as f:
                 f.write(data)
-            #redis.Redis(settings.REDIS_HOST, settings.REDIS_PORT)
+
             ranges = range(1, 6)
             # since zoom level 3 is the default, make sure that's prepared first
             ranges.remove(3)
@@ -166,12 +175,14 @@ class ReallyDownloadHandler(DownloadHandler):
         self.finish()
 
 
+@route('/signout/', 'signout')
 class SignoutHandler(BaseHandler):
     def get(self):
         self.clear_cookie('user')
         self.redirect('/')
 
 
+@route('/browserid/', 'browserid')
 class BrowserIDAuthLoginHandler(BaseHandler):
 
     def check_xsrf_cookie(self):
@@ -206,6 +217,9 @@ class BrowserIDAuthLoginHandler(BaseHandler):
         self.finish()
 
 
+@route(r'/tiles/(?P<image>\w{1}/\w{2}/\w{6})/(?P<size>\d+)'
+       r'/(?P<zoom>\d+)/(?P<row>\d+),(?P<col>\d+).png',
+       name='tile')
 class TileHandler(BaseHandler):
 
     def get(self, image, size, zoom, row, col):
@@ -258,3 +272,21 @@ class TileHandler(BaseHandler):
             image.save(save_filepath)
 
         self.write(open(save_filepath, 'rb').read())
+
+
+# this handler gets automatically appended last to all handlers inside app.py
+class PageNotFoundHandler(BaseHandler):
+
+    def get(self):
+        path = self.request.path
+        page = path[1:]
+        if page.endswith('/'):
+            page = page[:-1]
+        page = page.split('/')[-1]
+        if not path.endswith('/'):
+            new_url = '%s/' % path
+            if self.request.query:
+                new_url += '?%s' % self.request.query
+            self.redirect(new_url)
+            return
+        raise HTTPError(404, path)

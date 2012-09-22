@@ -8,7 +8,7 @@ var Download = (function() {
   }
 
   function start(url) {
-      $.post('/download/preview', {url: url}, function(response) {
+      $.post(PREVIEW_URL, {url: url}, function(response) {
 
         if (response.error) {
           return show_error(response.error);
@@ -20,7 +20,7 @@ var Download = (function() {
         $('#expected_size, #left').text(response.expected_size);
         $('#content_type').text(response.content_type);
 
-        $.post('/download/download', {fileid: _fileid}, function(response) {
+        $.post(REALLY_URL, {fileid: _fileid}, function(response) {
           clearInterval(_progress_interval);
           $('#progress').hide(900);
           if (response.error) {
@@ -32,7 +32,7 @@ var Download = (function() {
         });
 
         _progress_interval = setInterval(function() {
-          $.getJSON('/download/progress', {fileid: _fileid}, function(response) {
+          $.getJSON(PROGRESS_URL, {fileid: _fileid}, function(response) {
             $('#left').text(response.left);
             $('#downloaded').text(response.done);
           });
