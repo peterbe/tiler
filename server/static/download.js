@@ -3,20 +3,11 @@ var Download = (function() {
   var _fileid;
 
   function show_error(message) {
-    $('#errormessage').text(response.error);
+    $('#errormessage').text(message);
     $('#error').fadeIn(300);
   }
 
-  function setup() {
-
-    // in case it got stuck last time
-    $('button, input').removeAttr('disabled');
-
-    $('form').submit(function() {
-      var url = $.trim($('input[name="url"]').val());
-      if (!url) {
-        return;
-      }
+  function start(url) {
       $.post('/download/preview', {url: url}, function(response) {
 
         if (response.error) {
@@ -30,13 +21,13 @@ var Download = (function() {
         $('#content_type').text(response.content_type);
 
         $.post('/download/download', {fileid: _fileid}, function(response) {
-          console.log("DOWNLOADED", response);
           clearInterval(_progress_interval);
           $('#progress').hide(900);
           if (response.error) {
             return show_error(response.error);
           }
-          $('#url').text(response.url).attr('href', response.url);
+          var base_url = location.href.replace(location.pathname, '');
+          $('#url').text(base_url + response.url).attr('href', response.url);
           $('#complete').fadeIn(300);
         });
 
@@ -45,13 +36,34 @@ var Download = (function() {
             $('#left').text(response.left);
             $('#downloaded').text(response.done);
           });
-        }, 300);  // should be 1000
+        }, 1000);
       });
+
+  }
+
+  function setup() {
+
+    // in case it got stuck last time
+    $('button, input').removeAttr('disabled');
+
+    $('form').submit(function() {
+      var url = $.trim($('input[name="url"]').val());
+      if (!url) {
+        return;
+      }
+      start(url);
       return false;
     });
   }
-  return {setup: setup};
+  return {setup: setup, start: start};
 })();
+
+
+function files_picked(files) {
+  $.each(files, function(i, each) {
+    Download.start(each.url);
+  });
+}
 
 $(function() {
   Download.setup();

@@ -1,10 +1,16 @@
 {% extends "base.html" %}
 
+{% block extra_head %}
+<style type="text/css">
+form button { font-size: 150%; }
+</style>
+{% end %}
+
 {% block main %}
 
   <div class="row">
     <div class="twelve columns">
-      <h2>Download</h2>
+      <h2>Upload</h2>
     </div>
   </div>
 
@@ -12,44 +18,65 @@
     <div class="twelve columns">
       <form>
 
+        <!--
         <label>URL:</label>
         <input name="url" style="font-size:150%">
         <button>Go!</button>
+        -->
+        <input onchange="files_picked(event.files)"
+               data-fp-option-services="BOX,COMPUTER,DROPBOX,GOOGLE_DRIVE,FLICKR,GMAIL,IMAGE_SEARCH,URL,WEBCAM"
+               data-fp-option-container="modal"
+               data-fp-apikey="AFC21lQ73SYmfQT2Ya4oSz"
+               type="filepicker-dragdrop">
+               <!-- data-fp-option-multiple="true"-->
+
+        <p style="text-align:center;margin-top:50px">
+          <a href="https://www.filepicker.io/partner/link/"
+           ><img src="https://www.filepicker.io/partner/badge/white/"
+             alt="Powered By Filepicker.io"></a>
+        </p>
       </form>
     </div>
 
+
+
     <div id="progress" class="row" style="display:none">
-    
+
+      <p>
+      <img class="ajax-loader" src="{{ static_url('images/ajax-loader.gif') }}" alt="Loading loading loading">
+      Processing the image...
+      </p>
+
       <dl>
         <dt>Expected size:</dt>
         <dd><code id="expected_size"></code></dd>
-    
+
         <dt>Content type:</dt>
         <dd><code id="content_type"></code></dd>
-    
+
         <dt>Left to download:</dt>
         <dd><code id="left"></code></dd>
-    
+
         <dt>Downloaded so far:</dt>
         <dd><code id="downloaded">0</code></dd>
       </dl>
-    
+
     </div>
-    
+
     <div id="complete" class="row" style="display:none">
-    
+
       <h2 style="color:green">Done!</h2>
       <h3><a href="" id="url"></a></h3>
-    
+
     </div>
-    
-    
+
+
     <div id="error" class="row" style="display:none">
       <h2 style="color:red">Error :(</h2>
       <code id="errormessage"></code>
     </div>
-    
-    
+
+
   </div>
 
 
@@ -58,5 +85,9 @@
 {% end %}
 
 {% block extra_js %}
+<script src="https://api.filepicker.io/v0/filepicker.js"></script>
+<script type="text/javascript">
+filepicker.setKey('AFC21lQ73SYmfQT2Ya4oSz');
+</script>
 <script src="{{ static_url('download.js') }}"></script>
 {% end %}
