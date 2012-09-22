@@ -148,7 +148,11 @@ class ReallyDownloadHandler(DownloadHandler):
             with open(destination, 'wb') as f:
                 f.write(data)
             #redis.Redis(settings.REDIS_HOST, settings.REDIS_PORT)
-            data = {'path': destination, 'ranges': range(1, 6)}
+            ranges = range(1, 6)
+            # since zoom level 3 is the default, make sure that's prepared first
+            ranges.remove(3)
+            ranges.insert(0, 3)
+            data = {'path': destination, 'ranges': ranges}
             self.redis.publish(
                 'resizer',
                 json.dumps(data)
