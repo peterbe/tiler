@@ -14,6 +14,10 @@ from utils import scale_and_crop, mkdir
 
 class BaseHandler(tornado.web.RequestHandler):
 
+    DEFAULT_RANGE_MIN = 2
+    DEFAULT_RANGE_MAX = 5
+    DEFAULT_ZOOM = 3
+
     @property
     def redis(self):
         return self.application.redis
@@ -42,8 +46,10 @@ class ImageHandler(BaseHandler):
             '/' +
             filename[3:]
         )
-        ranges = [2, 6]
-        default_zoom = 3
+        # we might want to read from a database what the most
+        # appropriate numbers should be here.
+        ranges = [self.DEFAULT_RANGE_MIN, self.DEFAULT_RANGE_MAX]
+        default_zoom = self.DEFAULT_ZOOM
         self.render(
             'image.html',
             image_filename=image_filename,
@@ -183,10 +189,10 @@ class DownloadUploadHandler(UploadHandler):
             #with open(destination, 'wb') as f:
             #    f.write(data)
 
-            ranges = range(1, 6)
+            ranges = range(self.DEFAULT_RANGE_MIN, self.DEFAULT_RANGE_MAX)
             # since zoom level 3 is the default, make sure that's prepared first
-            ranges.remove(3)
-            ranges.insert(0, 3)
+            ranges.remove(self.DEFAULT_ZOOM)
+            ranges.insert(0, self.DEFAULT_ZOOM)
             data = {'path': destination, 'ranges': ranges}
             self.redis.publish(
                 'resizer',

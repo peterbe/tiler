@@ -27,7 +27,6 @@
 body,html {
   height:100%;
   overflow:hidden;
-  background-color: white;
   font-family:Helvetica;
   color:rgb(30,30,30);
 }
