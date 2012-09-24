@@ -93,9 +93,9 @@ form button { font-size: 150%; }
 <script src="https://api.filepicker.io/v0/filepicker.js"></script>
 <script type="text/javascript">
 filepicker.setKey('AFC21lQ73SYmfQT2Ya4oSz');
-var PREVIEW_URL = '{{ reverse_url('download_preview') }}';
-var REALLY_URL = '{{ reverse_url('download_really') }}';
-var PROGRESS_URL = '{{ reverse_url('download_progress') }}';
+var PREVIEW_URL = '{{ reverse_url('upload_preview') }}';
+var REALLY_URL = '{{ reverse_url('upload_download') }}';
+var PROGRESS_URL = '{{ reverse_url('upload_progress') }}';
 </script>
 <script src="{{ static_url('download.js') }}"></script>
 {% end %}

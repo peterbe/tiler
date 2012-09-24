@@ -43,12 +43,12 @@ class ImageHandler(BaseHandler):
         self.render('image.html', image_filename=image_filename)
 
 
-@route('/download', 'download')
-class DownloadHandler(BaseHandler):
+@route('/upload', 'upload')
+class UploadHandler(BaseHandler):
 
     def get(self):
         #assert self.get_secure_cookie('user'), "not logged in"
-        self.render('download.html')
+        self.render('upload.html')
 
     def make_destination(self, fileid):
         root = os.path.join(
@@ -77,8 +77,8 @@ class DownloadHandler(BaseHandler):
         return destination
 
 
-@route('/download/preview', 'download_preview')
-class PreviewDownloadHandler(DownloadHandler):
+@route('/upload/preview', 'upload_preview')
+class PreviewUploadHandler(UploadHandler):
 
     @tornado.web.asynchronous
     @tornado.gen.engine
@@ -119,8 +119,8 @@ class PreviewDownloadHandler(DownloadHandler):
         self.finish()
 
 
-@route('/download/progress', 'download_progress')
-class ProgressDownloadHandler(DownloadHandler):
+@route('/upload/progress', 'upload_progress')
+class ProgressUploadHandler(UploadHandler):
 
     def get(self):
         fileid = self.get_argument('fileid')
@@ -143,8 +143,8 @@ def my_streaming_callback(destination_file, data):
     destination_file.write(data)
 
 
-@route('/download/download', 'download_really')
-class ReallyDownloadHandler(DownloadHandler):
+@route('/upload/download', 'upload_download')
+class DownloadUploadHandler(UploadHandler):
 
     @tornado.web.asynchronous
     @tornado.gen.engine
@@ -169,8 +169,6 @@ class ReallyDownloadHandler(DownloadHandler):
         destination_file.close()
         if response.code == 200:
             #data = response.body
-            #data
-
             #with open(destination, 'wb') as f:
             #    f.write(data)
 
