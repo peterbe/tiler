@@ -17,26 +17,46 @@ var Download = (function() {
         $('button, input').attr('disabled', 'disabled');
         $('#progress').show(300);
         _fileid = response.fileid;
-        $('#expected_size, #left').text(response.expected_size);
+        $('#expected_size, #left')
+          .text(response.expected_size)
+          .data('total', response.expected_size);
         $('#content_type').text(response.content_type);
 
-        $.post(REALLY_URL, {fileid: _fileid}, function(response) {
-          clearInterval(_progress_interval);
-          $('#progress').hide(900);
-          if (response.error) {
-            return show_error(response.error);
+        $.ajax({
+           type: 'POST',
+           url: REALLY_URL,
+           data: {fileid: _fileid},
+          success: function(response) {
+            clearInterval(_progress_interval);
+            $('#progress').hide(900);
+            if (response.error) {
+              return show_error(response.error);
+            }
+            var base_url = location.href.replace(location.pathname, '');
+            $('#url').text(base_url + response.url).attr('href', response.url);
+            $('#complete').fadeIn(300);
+          },
+          error: function(xhr, status, error_thrown) {
+            clearInterval(_progress_interval);
+            $('button, input').removeAttr('disabled', 'disabled');
+            $('#progress').hide();
+            var msg = status;
+            if (xhr.responseText) {
+              msg += ': ' + xhr.responseText;
+            }
+            alert(msg);
           }
-          var base_url = location.href.replace(location.pathname, '');
-          $('#url').text(base_url + response.url).attr('href', response.url);
-          $('#complete').fadeIn(300);
         });
 
         _progress_interval = setInterval(function() {
           $.getJSON(PROGRESS_URL, {fileid: _fileid}, function(response) {
+            var total = $('#expected_size').data('total');
+            var percentage = Math.round(response.done / total * 100);
             $('#left').text(response.left);
             $('#downloaded').text(response.done);
+            $('#percentage').text(percentage + '%');
           });
-        }, 1000);
+        }, 500);
       });
 
   }

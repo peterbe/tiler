@@ -3,6 +3,7 @@ import json
 import stat
 import urllib
 import uuid
+import functools
 
 import tornado.web
 import tornado.gen
@@ -61,13 +62,17 @@ class DownloadHandler(BaseHandler):
             fileid[:1],
             fileid[1:3],
         )
+        # so far, it's the directory
         mkdir(destination)
-        #    fileid[3:]
-        #)
+        # this is the full file path
         destination += '/%s' % fileid[3:]
         content_type = self.redis.get('contenttype:%s' % fileid)
-        print "content_type", repr(content_type), "JPG?"
-        destination += '.jpg'  # XXX good enough?
+        # complete it with the extension
+        if content_type == 'image/png':
+            destination += '.png'
+        else:
+            assert content_type == 'image/jpeg', content_type
+            destination += '.jpg'
 
         return destination
 
@@ -134,6 +139,10 @@ class ProgressDownloadHandler(DownloadHandler):
         self.write(data)
 
 
+def my_streaming_callback(destination_file, data):
+    destination_file.write(data)
+
+
 @route('/download/download', 'download_really')
 class ReallyDownloadHandler(DownloadHandler):
 
@@ -143,19 +152,27 @@ class ReallyDownloadHandler(DownloadHandler):
         fileid = self.get_argument('fileid')
         url = self.redis.get('fileid:%s' % fileid)
         #assert self.get_secure_cookie('user'), "not logged in"
+        import tornado.curl_httpclient
+        tornado.httpclient.AsyncHTTPClient.configure(
+            tornado.curl_httpclient.CurlAsyncHTTPClient
+        )
         http_client = tornado.httpclient.AsyncHTTPClient()
+        destination = self.make_destination(fileid)
+        destination_file = open(destination, 'wb')
         response = yield tornado.gen.Task(
             http_client.fetch,
             url,
-            headers={}
+            headers={},
+            streaming_callback=functools.partial(my_streaming_callback,
+                                                 destination_file)
         )
+        destination_file.close()
         if response.code == 200:
-            data = response.body
+            #data = response.body
+            #data
 
-            destination = self.make_destination(fileid)
-
-            with open(destination, 'wb') as f:
-                f.write(data)
+            #with open(destination, 'wb') as f:
+            #    f.write(data)
 
             ranges = range(1, 6)
             # since zoom level 3 is the default, make sure that's prepared first
@@ -168,6 +185,10 @@ class ReallyDownloadHandler(DownloadHandler):
             )
             self.write({'url': '/%s' % fileid})  # reverse_url()
         else:
+            try:
+                os.remove(destination)
+            except:
+                logging.error("Unable to remove %s" % destination, exc_info=True)
             self.write({
                 'error': "FAILED TO DOWNLOAD\n%s\n%s\n" %
                          (response.code, response.body)

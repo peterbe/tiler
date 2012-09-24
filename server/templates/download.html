@@ -18,11 +18,13 @@ form button { font-size: 150%; }
     <div class="twelve columns">
       <form>
 
-        <!--
+        <div>
         <label>URL:</label>
         <input name="url" style="font-size:150%">
         <button>Go!</button>
-        -->
+        </div>
+
+
         <input onchange="files_picked(event.files)"
                data-fp-option-services="BOX,COMPUTER,DROPBOX,GOOGLE_DRIVE,FLICKR,GMAIL,IMAGE_SEARCH,URL,WEBCAM"
                data-fp-option-container="modal"
@@ -59,6 +61,9 @@ form button { font-size: 150%; }
 
         <dt>Downloaded so far:</dt>
         <dd><code id="downloaded">0</code></dd>
+
+        <dt>Percentage:</dt>
+        <dd><code id="percentage">0%</code></dd>
       </dl>
 
     </div>

@@ -2,3 +2,4 @@ tornado==2.3
 redis
 PIL
 tornado-utils
+pycurl
