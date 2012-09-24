@@ -22,7 +22,9 @@ class BaseHandler(tornado.web.RequestHandler):
 @route('/', name='home')
 class HomeHandler(BaseHandler):
     def get(self):
-        self.render('index.html')
+        data = {}
+        data['recent_fileids'] = self.redis.lrange('fileids', 0, 4)
+        self.render('index.html', **data)
 
 
 class DropboxHandler(BaseHandler):
@@ -168,6 +170,8 @@ class DownloadUploadHandler(UploadHandler):
         )
         destination_file.close()
         if response.code == 200:
+
+            self.redis.lpush('fileids', fileid)
             #data = response.body
             #with open(destination, 'wb') as f:
             #    f.write(data)
@@ -308,4 +312,4 @@ class PageNotFoundHandler(BaseHandler):
                 new_url += '?%s' % self.request.query
             self.redirect(new_url)
             return
-        raise HTTPError(404, path)
+        raise tornado.web.HTTPError(404, path)
