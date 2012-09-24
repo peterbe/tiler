@@ -1,5 +1,10 @@
 {% extends "base.html" %}
-{% block body_tag %}data-image="{{ image_filename }}"{% end %}
+{% block body_tag %}
+  data-image="{{ image_filename }}"
+  data-range-min="{{ ranges[0] }}"
+  data-range-max="{{ ranges[1] }}"
+  data-default-zoom="{{ default_zoom }}"
+{% end %}
 
 {% block css %}
 <link rel="stylesheet" href="{{ static_url('css/image.css') }}" type="text/css" >

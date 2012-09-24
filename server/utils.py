@@ -1,6 +1,7 @@
 import time
 import os
 from PIL import Image
+import logging
 
 
 def mkdir(newdir):
@@ -33,9 +34,11 @@ def scale_and_crop(path, requested_size, row, col, zoom=None, image=None):
 
     w, h = int(round(x * r)), int(round(y * r))
     _cache_key = '%s-%s-%s-%s' % (image, zoom, w, h)
+    pathname, extension = os.path.splitext(path)
+
     _resized_file = path.replace(
-        '.jpg',
-        '-%s-%s-%s.jpg' % (zoom, w, h)
+        extension,
+        '-%s-%s-%s%s' % (zoom, w, h, extension)
     )
 
     already = _RESIZES.get(_cache_key)
@@ -43,14 +46,18 @@ def scale_and_crop(path, requested_size, row, col, zoom=None, image=None):
         im = already
     else:
         if os.path.isfile(_resized_file):
-            print "REUSING", _resized_file
+            #print "REUSING", _resized_file
+            logging.debug('REUSING %s' % _resized_file)
             im = Image.open(_resized_file)
             #print "Assert?", (im.size, (w,h))
         else:
+            print "Need to resize..."
             im = im.resize((w, h),
                            resample=Image.ANTIALIAS)
-            print "SAVE RESIZED TO", _resized_file
+            logging.debug("SAVE RESIZED TO %s" % _resized_file)
+            #print "SAVE RESIZED TO", _resized_file
             im.save(_resized_file)
+
 
     _RESIZES[_cache_key] = im
     _TIMESTAMPS[_cache_key] = time.time()

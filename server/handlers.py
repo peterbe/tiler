@@ -42,7 +42,14 @@ class ImageHandler(BaseHandler):
             '/' +
             filename[3:]
         )
-        self.render('image.html', image_filename=image_filename)
+        ranges = [2, 6]
+        default_zoom = 3
+        self.render(
+            'image.html',
+            image_filename=image_filename,
+            ranges=ranges,
+            default_zoom=default_zoom
+        )
 
 
 @route('/upload', 'upload')
