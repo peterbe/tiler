@@ -1,9 +1,11 @@
 
 $(function() {
-  var image = $('body').data('image');
-  var range_min = $('body').data('range-min');
-  var range_max = $('body').data('range-max');
-  var default_zoom = $('body').data('default-zoom');
+  var $body = $('body');
+  var image = $body.data('image');
+  var range_min = $body.data('range-min');
+  var range_max = $body.data('range-max');
+  var default_zoom = $body.data('default-zoom');
+  var extension = $body.data('extension');
   var po = org.polymaps;
 
   var map = po.map()
@@ -15,7 +17,7 @@ $(function() {
       .add(po.hash());
 
   map.add(po.image()
-      .url(po.url("/tiles/" + image + "/256/{Z}/{X},{Y}.png")
+      .url(po.url("/tiles/" + image + "/256/{Z}/{X},{Y}." + extension)
       ));
 
   map.add(po.compass()

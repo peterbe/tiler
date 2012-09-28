@@ -17,6 +17,7 @@ class BaseHandler(tornado.web.RequestHandler):
     DEFAULT_RANGE_MIN = 2
     DEFAULT_RANGE_MAX = 5
     DEFAULT_ZOOM = 3
+    DEFAULT_EXTENSION = 'png'
 
     @property
     def redis(self):
@@ -50,11 +51,14 @@ class ImageHandler(BaseHandler):
         # appropriate numbers should be here.
         ranges = [self.DEFAULT_RANGE_MIN, self.DEFAULT_RANGE_MAX]
         default_zoom = self.DEFAULT_ZOOM
+        extension = self.get_argument('extension', self.DEFAULT_EXTENSION)
+        assert extension in ('png', 'jpg'), extension
         self.render(
             'image.html',
             image_filename=image_filename,
             ranges=ranges,
-            default_zoom=default_zoom
+            default_zoom=default_zoom,
+            extension=extension,
         )
 
 
@@ -254,12 +258,16 @@ class BrowserIDAuthLoginHandler(BaseHandler):
 
 
 @route(r'/tiles/(?P<image>\w{1}/\w{2}/\w{6})/(?P<size>\d+)'
-       r'/(?P<zoom>\d+)/(?P<row>\d+),(?P<col>\d+).png',
+       r'/(?P<zoom>\d+)/(?P<row>\d+),(?P<col>\d+)'
+       r'.(?P<extension>jpg|png)',
        name='tile')
 class TileHandler(BaseHandler):
 
-    def get(self, image, size, zoom, row, col):
-        self.set_header('Content-Type', 'image/png')
+    def get(self, image, size, zoom, row, col, extension):
+        if extension == 'png':
+            self.set_header('Content-Type', 'image/png')
+        else:
+            self.set_header('Content-Type', 'image/jpeg')
         size = int(size)
         zoom = int(zoom)
         row = int(row)
@@ -294,7 +302,10 @@ class TileHandler(BaseHandler):
             save_filepath = os.path.join(save_filepath, p)
             if not os.path.isdir(save_filepath):
                 mkdir(save_filepath)
-        save_filepath = os.path.join(save_filepath, '%s,%s.png' % (row, col))
+        save_filepath = os.path.join(
+            save_filepath,
+            '%s,%s.%s' % (row, col, extension)
+        )
 
         if not os.path.isfile(save_filepath):
             image = scale_and_crop(
