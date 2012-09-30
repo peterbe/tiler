@@ -5,12 +5,15 @@ import urllib
 import uuid
 import functools
 
+from PIL import Image
 import tornado.web
 import tornado.gen
 import tornado.httpclient
 import tornado.curl_httpclient
 from tornado_utils.routes import route
-from utils import scale_and_crop, mkdir, make_tile
+from rq import Queue
+from utils import scale_and_crop, mkdir, make_tile, make_tiles
+from optimizer import optimize_images
 from resizer import make_resize
 
 
@@ -202,9 +205,6 @@ class DownloadUploadHandler(UploadHandler):
         if response.code == 200:
 
             self.redis.lpush('fileids', fileid)
-            #data = response.body
-            #with open(destination, 'wb') as f:
-            #    f.write(data)
 
             ranges = range(
                 self.DEFAULT_RANGE_MIN,
@@ -213,8 +213,35 @@ class DownloadUploadHandler(UploadHandler):
             # since zoom level 3 is the default, make sure that's prepared first
             ranges.remove(self.DEFAULT_ZOOM)
             ranges.insert(0, self.DEFAULT_ZOOM)
+            q = Queue(connection=self.redis)
+            #for zoom in ranges:
+            #    q.enqueue(make_resize, destination, zoom)
+
+            cols = 15
+            rows = 15
+            image_split = fileid[:1] + '/' + fileid[1:3] + '/' + fileid[3:]
+            extension = destination.split('.')[-1]
             for zoom in ranges:
-                self.queue.enqueue(make_resize, destination, zoom)
+                q.enqueue(
+                    make_tiles,
+                    image_split,
+                    256,
+                    zoom,
+                    rows,
+                    cols,
+                    extension,
+                    self.application.settings['static_path']
+                )
+
+            # once that's queued up we can start optimizing
+            for zoom in ranges:
+                q.enqueue(
+                    optimize_images,
+                    image_split,
+                    zoom,
+                    extension,
+                    self.application.settings['static_path']
+                )
 
             self.write({'url': '/%s' % fileid})  # reverse_url()
         else:
@@ -291,7 +318,16 @@ class TileHandler(BaseHandler):
                                       self.application.settings['static_path'])
         except IOError, msg:
             raise tornado.web.HTTPError(404, msg)
-        self.write(open(save_filepath, 'rb').read())
+        try:
+            self.write(open(save_filepath, 'rb').read())
+        except IOError:
+            self.set_header('Content-Type', 'image/png')
+            broken_filepath = os.path.join(
+                self.application.settings['static_path'],
+                'images',
+                'broken.png'
+            )
+            self.write(open(broken_filepath, 'rb').read())
 
 
 # this handler gets automatically appended last to all handlers inside app.py

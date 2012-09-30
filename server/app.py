@@ -7,9 +7,7 @@ from tornado.options import define, options
 from tornado_utils.routes import route
 import redis.client
 import settings
-#from resizer import main as resizer_main
 import handlers
-from rq import Queue
 
 
 define("debug", default=False, help="run in debug mode", type=bool)

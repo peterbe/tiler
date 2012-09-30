@@ -28,13 +28,13 @@ var Download = (function() {
            data: {fileid: _fileid},
           success: function(response) {
             clearInterval(_progress_interval);
-            $('#progress').hide(900);
+            $('#progress').fadeOut(300);
             if (response.error) {
               return show_error(response.error);
             }
             var base_url = location.href.replace(location.pathname, '');
             $('#url').text(base_url + response.url).attr('href', response.url);
-            $('#complete').fadeIn(300);
+            $('#complete').fadeIn(900);
           },
           error: function(xhr, status, error_thrown) {
             clearInterval(_progress_interval);
@@ -56,7 +56,7 @@ var Download = (function() {
             $('#downloaded').text(response.done);
             $('#percentage').text(percentage + '%');
           });
-        }, 500);
+        }, 1000);
       });
 
   }

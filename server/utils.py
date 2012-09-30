@@ -26,11 +26,13 @@ _RESIZES = {}
 _TIMESTAMPS = {}
 
 
-def scale_and_crop(path, requested_size, row, col, zoom=None, image=None):
+def scale_and_crop(path, requested_size, row, col, zoom, image):
     im = Image.open(path)
     x, y = [float(v) for v in im.size]
     xr, yr = [float(v) for v in requested_size]
     r = min(xr / x, yr / y)
+
+    box = (256 * row, 256 * col, 256 * (row + 1), 256 * (col + 1))
 
     w, h = int(round(x * r)), int(round(y * r))
     _cache_key = '%s-%s-%s-%s' % (image, zoom, w, h)
@@ -58,7 +60,6 @@ def scale_and_crop(path, requested_size, row, col, zoom=None, image=None):
             #print "SAVE RESIZED TO", _resized_file
             im.save(_resized_file)
 
-
     _RESIZES[_cache_key] = im
     _TIMESTAMPS[_cache_key] = time.time()
 
@@ -72,13 +73,11 @@ def scale_and_crop(path, requested_size, row, col, zoom=None, image=None):
             del _RESIZES[key]
 
     # convert (width, height, x, y) into PIL crop box
-    box = (256 * row, 256 * col, 256 * (row + 1), 256 * (col + 1))
-    im = im.crop(box)
-
-    return im
+    return im.crop(box)
 
 
 def make_tile(image, size, zoom, row, col, extension, static_path):
+
     size = int(size)
     zoom = int(zoom)
     row = int(row)
@@ -106,25 +105,44 @@ def make_tile(image, size, zoom, row, col, extension, static_path):
     else:
         raise IOError(image)
 
-    width = size * (2 ** zoom)
     save_filepath = save_root
     for p in (image, str(size), str(zoom)):
         save_filepath = os.path.join(save_filepath, p)
         if not os.path.isdir(save_filepath):
-            mkdir(save_filepath)
+            try:
+                mkdir(save_filepath)
+            except OSError:
+                # because this function is called concurrently by the queue
+                # workers this is not thread safe so it might raise an OSError
+                # even though the file already exists
+                from time import sleep
+                sleep(0.1)
+                if not os.path.isdir(save_filepath):
+                    raise
     save_filepath = os.path.join(
         save_filepath,
         '%s,%s.%s' % (row, col, extension)
     )
-
     if not os.path.isfile(save_filepath):
-        image = scale_and_crop(
+        print "From", image, "make", '%s,%s.%s' % (row, col, extension)
+        width = size * (2 ** zoom)
+        cropped_image = scale_and_crop(
             path,
             (width, width),
             row, col,
             zoom=zoom,
             image=image,
         )
-        image.save(save_filepath)
+        if cropped_image is not None:
+            print "\tCreated", save_filepath
+            cropped_image.save(save_filepath)
 
     return save_filepath
+
+
+def make_tiles(image, size, zoom, rows, cols, extension, static_path):
+    # this is an "optimization" over make_tile() since we make one Image
+    # instance and re-use it for every row and every column.
+    for row in range(rows + 1):
+        for col in range(cols + 1):
+            make_tile(image, size, zoom, row, col, extension, static_path)
