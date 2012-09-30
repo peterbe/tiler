@@ -17,9 +17,14 @@ var Download = (function() {
         $('button, input').attr('disabled', 'disabled');
         $('#progress').show(300);
         _fileid = response.fileid;
+
         $('#expected_size, #left')
           .text(response.expected_size)
-          .data('total', response.expected_size);
+          .data('total', humanize.filesize(response.expected_size));
+        if (!response.expected_size) {
+          $('#expected_size, #left')
+            .text('not known :(')
+        }
         $('#content_type').text(response.content_type);
 
         $.ajax({
@@ -50,11 +55,13 @@ var Download = (function() {
 
         _progress_interval = setInterval(function() {
           $.getJSON(PROGRESS_URL, {fileid: _fileid}, function(response) {
+            $('#downloaded').text(humanize.filesize(response.done));
             var total = $('#expected_size').data('total');
-            var percentage = Math.round(response.done / total * 100);
-            $('#left').text(total - response.done);
-            $('#downloaded').text(response.done);
-            $('#percentage').text(percentage + '%');
+            if (total) {
+              var percentage = Math.round(response.done / total * 100);
+              $('#left').text(humanize.filesize(total - response.done));
+              $('#percentage').text(percentage + '%');
+            }
           });
         }, 1000);
       });

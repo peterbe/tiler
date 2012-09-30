@@ -124,7 +124,7 @@ def make_tile(image, size, zoom, row, col, extension, static_path):
         '%s,%s.%s' % (row, col, extension)
     )
     if not os.path.isfile(save_filepath):
-        print "From", image, "make", '%s,%s.%s' % (row, col, extension)
+        #print "From", image, "make", '%s,%s.%s' % (row, col, extension)
         width = size * (2 ** zoom)
         cropped_image = scale_and_crop(
             path,
@@ -134,7 +134,7 @@ def make_tile(image, size, zoom, row, col, extension, static_path):
             image=image,
         )
         if cropped_image is not None:
-            print "\tCreated", save_filepath
+            print "Created", save_filepath
             cropped_image.save(save_filepath)
 
     return save_filepath

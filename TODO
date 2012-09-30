@@ -1,8 +1,11 @@
+* Integrate Persona
+
 * Figure out why
   http://tiler.peterbe.com/tiles/7/89/8b47ed/256/4/8,3.png 
   became 115Kb
   Turns out, making it a JPG will make it 33Kb
   jpegoptim can make it down to 25Kb
+  DONE
 
 * Integrate Filepicker.io
   DONE

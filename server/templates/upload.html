@@ -19,11 +19,10 @@ form button { font-size: 150%; }
       <form>
 
         <div>
-        <label>URL:</label>
-        <input name="url" style="font-size:150%">
-        <button>Go!</button>
+          <label>URL:</label>
+          <input name="url" style="font-size:150%">
+          <button>Go!</button>
         </div>
-
 
         <input onchange="files_picked(event.files)"
                data-fp-option-services="BOX,COMPUTER,DROPBOX,GOOGLE_DRIVE,FLICKR,GMAIL,IMAGE_SEARCH,URL,WEBCAM"
@@ -97,5 +96,6 @@ var PREVIEW_URL = '{{ reverse_url('upload_preview') }}';
 var REALLY_URL = '{{ reverse_url('upload_download') }}';
 var PROGRESS_URL = '{{ reverse_url('upload_progress') }}';
 </script>
+<script src="{{ static_url('libs/humanize.js') }}"></script>
 <script src="{{ static_url('download.js') }}"></script>
 {% end %}

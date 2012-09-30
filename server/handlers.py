@@ -4,6 +4,7 @@ import urllib
 import uuid
 import functools
 import logging
+from pprint import pprint
 
 import tornado.web
 import tornado.gen
@@ -128,9 +129,21 @@ class PreviewUploadHandler(UploadHandler):
         if not head_response.code == 200:
             self.write({'error': head_response.body})
             return
-        expected_size = int(head_response.headers['Content-Length'])
         content_type = head_response.headers['Content-Type']
-        #print "What about content_type", repr(content_type)
+        if content_type not in ('image/jpeg', 'image/png'):
+            raise tornado.web.HTTPError(
+                400,
+                "Unrecognized content type '%s'" % content_type
+            )
+        print head_response.headers
+        pprint(dict(head_response.headers))
+        try:
+            expected_size = int(head_response.headers['Content-Length'])
+        except KeyError:
+            # sometimes images don't have a Content-Length but still work
+            logging.warning("No Content-Length (content-encoding:%r)" %
+                            head_response.headers.get('Content-Encoding', ''))
+            expected_size = 0
         if content_type not in ('image/jpeg', 'image/png'):
             raise tornado.web.HTTPError(
                 400,
