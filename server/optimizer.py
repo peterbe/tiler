@@ -52,9 +52,5 @@ def _optimize(files, extension):
     return (out, err)
 
 
-def main():
-    optimize_images(*args)
-
-
 if __name__ == '__main__':
     optimize_images('b/51/3acd3c', 3, 'png', './static')

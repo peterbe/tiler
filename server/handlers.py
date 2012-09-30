@@ -1,20 +1,19 @@
 import os
-import json
 import stat
 import urllib
 import uuid
 import functools
+import logging
 
-from PIL import Image
 import tornado.web
 import tornado.gen
 import tornado.httpclient
 import tornado.curl_httpclient
 from tornado_utils.routes import route
 from rq import Queue
-from utils import scale_and_crop, mkdir, make_tile, make_tiles
+from utils import mkdir, make_tile, make_tiles
 from optimizer import optimize_images
-from resizer import make_resize
+#from resizer import make_resize
 
 
 class BaseHandler(tornado.web.RequestHandler):
@@ -210,7 +209,8 @@ class DownloadUploadHandler(UploadHandler):
                 self.DEFAULT_RANGE_MIN,
                 self.DEFAULT_RANGE_MAX + 1
             )
-            # since zoom level 3 is the default, make sure that's prepared first
+            # since zoom level 3 is the default, make sure that's
+            # prepared first
             ranges.remove(self.DEFAULT_ZOOM)
             ranges.insert(0, self.DEFAULT_ZOOM)
             q = Queue(connection=self.redis)
@@ -248,7 +248,8 @@ class DownloadUploadHandler(UploadHandler):
             try:
                 os.remove(destination)
             except:
-                logging.error("Unable to remove %s" % destination, exc_info=True)
+                logging.error("Unable to remove %s" % destination,
+                              exc_info=True)
             self.write({
                 'error': "FAILED TO DOWNLOAD\n%s\n%s\n" %
                          (response.code, response.body)

@@ -28,12 +28,6 @@ class Application(tornado.web.Application):
             )
         return self._redis
 
-    @property
-    def queue(self):
-        if not self._queue:
-            self._queue = Queue(connection=self.redis)
-        return self._queue
-
 
 def app():
     app_settings = dict(
@@ -45,10 +39,10 @@ def app():
 
     routed_handlers = route.get_routes()
     routed_handlers.append(
-          tornado.web.url(
-              '/.*?',
-              handlers.PageNotFoundHandler,
-              name='page_not_found')
+        tornado.web.url(
+            '/.*?',
+            handlers.PageNotFoundHandler,
+            name='page_not_found')
     )
 
     return Application(routed_handlers, **app_settings)
