@@ -46,7 +46,7 @@ def scale_and_crop(path, requested_size, row, col, zoom=None, image=None):
         im = already
     else:
         if os.path.isfile(_resized_file):
-            #print "REUSING", _resized_file
+            print "REUSING", _resized_file
             logging.debug('REUSING %s' % _resized_file)
             im = Image.open(_resized_file)
             #print "Assert?", (im.size, (w,h))
@@ -76,3 +76,55 @@ def scale_and_crop(path, requested_size, row, col, zoom=None, image=None):
     im = im.crop(box)
 
     return im
+
+
+def make_tile(image, size, zoom, row, col, extension, static_path):
+    size = int(size)
+    zoom = int(zoom)
+    row = int(row)
+    col = int(col)
+
+    assert size == 256, size
+
+    root = os.path.join(
+        static_path,
+        'uploads'
+    )
+    if not os.path.isdir(root):
+        os.mkdir(root)
+    save_root = os.path.join(
+        static_path,
+        'tiles'
+    )
+    if not os.path.isdir(save_root):
+        os.mkdir(save_root)
+    path = os.path.join(root, image)
+    for i in ('.png', '.jpg'):
+        path = os.path.join(root, image + i)
+        if os.path.isfile(path):
+            break
+    else:
+        raise IOError(image)
+
+    width = size * (2 ** zoom)
+    save_filepath = save_root
+    for p in (image, str(size), str(zoom)):
+        save_filepath = os.path.join(save_filepath, p)
+        if not os.path.isdir(save_filepath):
+            mkdir(save_filepath)
+    save_filepath = os.path.join(
+        save_filepath,
+        '%s,%s.%s' % (row, col, extension)
+    )
+
+    if not os.path.isfile(save_filepath):
+        image = scale_and_crop(
+            path,
+            (width, width),
+            row, col,
+            zoom=zoom,
+            image=image,
+        )
+        image.save(save_filepath)
+
+    return save_filepath

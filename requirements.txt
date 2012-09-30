@@ -1,5 +1,6 @@
-tornado==2.3
+tornado
 redis
 PIL
 tornado-utils
 pycurl
+rq

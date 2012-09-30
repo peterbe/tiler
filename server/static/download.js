@@ -52,7 +52,7 @@ var Download = (function() {
           $.getJSON(PROGRESS_URL, {fileid: _fileid}, function(response) {
             var total = $('#expected_size').data('total');
             var percentage = Math.round(response.done / total * 100);
-            $('#left').text(response.left);
+            $('#left').text(total - response.done);
             $('#downloaded').text(response.done);
             $('#percentage').text(percentage + '%');
           });

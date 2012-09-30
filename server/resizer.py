@@ -31,6 +31,13 @@ def make_resizes(path, ranges):
         print "Created", resized, "in", round(t1 - t0, 3), "seconds"
 
 
+def make_resize(path, zoom):
+    t0 = time.time()
+    resized = _resize(path, zoom)
+    t1 = time.time()
+    print "Created", resized, "in", round(t1 - t0, 3), "seconds"
+
+
 def _resize(path, zoom):
     width = 256 * (2 ** zoom)
     im = Image.open(path)

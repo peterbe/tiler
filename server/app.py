@@ -7,8 +7,10 @@ from tornado.options import define, options
 from tornado_utils.routes import route
 import redis.client
 import settings
-from resizer import main as resizer_main
+#from resizer import main as resizer_main
 import handlers
+from rq import Queue
+
 
 define("debug", default=False, help="run in debug mode", type=bool)
 define("port", default=8000, help="run on the given port", type=int)
@@ -17,6 +19,7 @@ define("port", default=8000, help="run on the given port", type=int)
 class Application(tornado.web.Application):
 
     _redis = None
+    _queue = None
 
     @property
     def redis(self):
@@ -26,6 +29,12 @@ class Application(tornado.web.Application):
                 settings.REDIS_PORT
             )
         return self._redis
+
+    @property
+    def queue(self):
+        if not self._queue:
+            self._queue = Queue(connection=self.redis)
+        return self._queue
 
 
 def app():
@@ -51,10 +60,10 @@ if __name__ == '__main__':
 
     # it's lazy to run resizer as a thread but convenient
     # so I don't have to run a separate supervisor processor
-    import threading
-    t = threading.Thread(target=resizer_main)
-    t.setDaemon(True)
-    t.start()
+#    import threading
+#    t = threading.Thread(target=resizer_main)
+#    t.setDaemon(True)
+#    t.start()
 
     tornado.options.parse_command_line()
     app().listen(options.port)

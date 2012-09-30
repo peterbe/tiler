@@ -8,8 +8,10 @@ import functools
 import tornado.web
 import tornado.gen
 import tornado.httpclient
+import tornado.curl_httpclient
 from tornado_utils.routes import route
-from utils import scale_and_crop, mkdir
+from utils import scale_and_crop, mkdir, make_tile
+from resizer import make_resize
 
 
 class BaseHandler(tornado.web.RequestHandler):
@@ -22,6 +24,10 @@ class BaseHandler(tornado.web.RequestHandler):
     @property
     def redis(self):
         return self.application.redis
+
+    @property
+    def queue(self):
+        return self.application.queue
 
 
 @route('/', name='home')
@@ -39,19 +45,26 @@ class DropboxHandler(BaseHandler):
 
 @route('/(\w{9})', 'image')
 class ImageHandler(BaseHandler):
-    def get(self, filename):
+    def get(self, fileid):
         image_filename = (
-            filename[:1] +
+            fileid[:1] +
             '/' +
-            filename[1:3] +
+            fileid[1:3] +
             '/' +
-            filename[3:]
+            fileid[3:]
         )
         # we might want to read from a database what the most
         # appropriate numbers should be here.
         ranges = [self.DEFAULT_RANGE_MIN, self.DEFAULT_RANGE_MAX]
         default_zoom = self.DEFAULT_ZOOM
-        extension = self.get_argument('extension', self.DEFAULT_EXTENSION)
+        content_type = self.redis.get('contenttype:%s' % fileid)
+        if content_type == 'image/jpeg':
+            extension = 'jpg'
+        elif content_type == 'image/png':
+            extension = 'png'
+        else:
+            extension = self.DEFAULT_EXTENSION
+        extension = self.get_argument('extension', extension)
         assert extension in ('png', 'jpg'), extension
         self.render(
             'image.html',
@@ -113,10 +126,14 @@ class PreviewUploadHandler(UploadHandler):
         if not head_response.code == 200:
             self.write({'error': head_response.body})
             return
-        # XXX can we find out if this was a image/jpeg or something?
         expected_size = int(head_response.headers['Content-Length'])
         content_type = head_response.headers['Content-Type']
-        print "What about content_type", repr(content_type)
+        #print "What about content_type", repr(content_type)
+        if content_type not in ('image/jpeg', 'image/png'):
+            raise tornado.web.HTTPError(
+                400,
+                "Unrecognized content type '%s'" % content_type
+            )
 
         fileid = uuid.uuid4().hex[:9]
         self.redis.set('fileid:%s' % fileid, url)
@@ -143,17 +160,13 @@ class ProgressUploadHandler(UploadHandler):
 
     def get(self):
         fileid = self.get_argument('fileid')
-        expected_size = int(self.redis.get('expectedsize:%s' % fileid))
         destination = self.make_destination(fileid)
         data = {
-            'expected': expected_size,
-            'left': expected_size,
             'done': 0
         }
 
         if os.path.isfile(destination):
             size = os.stat(destination)[stat.ST_SIZE]
-            data['left'] -= size
             data['done'] = size
         self.write(data)
 
@@ -171,7 +184,6 @@ class DownloadUploadHandler(UploadHandler):
         fileid = self.get_argument('fileid')
         url = self.redis.get('fileid:%s' % fileid)
         #assert self.get_secure_cookie('user'), "not logged in"
-        import tornado.curl_httpclient
         tornado.httpclient.AsyncHTTPClient.configure(
             tornado.curl_httpclient.CurlAsyncHTTPClient
         )
@@ -182,6 +194,7 @@ class DownloadUploadHandler(UploadHandler):
             http_client.fetch,
             url,
             headers={},
+            request_timeout=100.0,  # 20.0 is the default
             streaming_callback=functools.partial(my_streaming_callback,
                                                  destination_file)
         )
@@ -193,15 +206,16 @@ class DownloadUploadHandler(UploadHandler):
             #with open(destination, 'wb') as f:
             #    f.write(data)
 
-            ranges = range(self.DEFAULT_RANGE_MIN, self.DEFAULT_RANGE_MAX)
+            ranges = range(
+                self.DEFAULT_RANGE_MIN,
+                self.DEFAULT_RANGE_MAX + 1
+            )
             # since zoom level 3 is the default, make sure that's prepared first
             ranges.remove(self.DEFAULT_ZOOM)
             ranges.insert(0, self.DEFAULT_ZOOM)
-            data = {'path': destination, 'ranges': ranges}
-            self.redis.publish(
-                'resizer',
-                json.dumps(data)
-            )
+            for zoom in ranges:
+                self.queue.enqueue(make_resize, destination, zoom)
+
             self.write({'url': '/%s' % fileid})  # reverse_url()
         else:
             try:
@@ -269,55 +283,14 @@ class TileHandler(BaseHandler):
         else:
             self.set_header('Content-Type', 'image/jpeg')
         size = int(size)
-        zoom = int(zoom)
-        row = int(row)
-        col = int(col)
-
         if size != 256:
-            raise tornado.web.HTTPError(400)
+            raise tornado.web.HTTPError(400, 'size must be 256')
 
-        root = os.path.join(
-            self.application.settings['static_path'],
-            'uploads'
-        )
-        if not os.path.isdir(root):
-            os.mkdir(root)
-        save_root = os.path.join(
-            self.application.settings['static_path'],
-            'tiles'
-        )
-        if not os.path.isdir(save_root):
-            os.mkdir(save_root)
-        path = os.path.join(root, image)
-        for i in ('.png', '.jpg'):
-            path = os.path.join(root, image + i)
-            if os.path.isfile(path):
-                break
-        else:
-            raise tornado.web.HTTPError(404, image)
-
-        width = size * (2 ** zoom)
-        save_filepath = save_root
-        for p in (image, str(size), str(zoom)):
-            save_filepath = os.path.join(save_filepath, p)
-            if not os.path.isdir(save_filepath):
-                mkdir(save_filepath)
-        save_filepath = os.path.join(
-            save_filepath,
-            '%s,%s.%s' % (row, col, extension)
-        )
-
-        if not os.path.isfile(save_filepath):
-            image = scale_and_crop(
-                path,
-                (width, width),
-                row, col,
-                zoom=zoom,
-                image=image,
-            )
-
-            image.save(save_filepath)
-
+        try:
+            save_filepath = make_tile(image, size, zoom, row, col, extension,
+                                      self.application.settings['static_path'])
+        except IOError, msg:
+            raise tornado.web.HTTPError(404, msg)
         self.write(open(save_filepath, 'rb').read())
 
 
