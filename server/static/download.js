@@ -19,8 +19,8 @@ var Download = (function() {
         _fileid = response.fileid;
 
         $('#expected_size, #left')
-          .text(response.expected_size)
-          .data('total', humanize.filesize(response.expected_size));
+          .text(humanize.filesize(response.expected_size))
+          .data('total', response.expected_size);
         if (!response.expected_size) {
           $('#expected_size, #left')
             .text('not known :(')

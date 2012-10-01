@@ -2,9 +2,12 @@
 import json
 import time
 import os
+import logging
 from PIL import Image
 import redis
 import settings
+
+import subprocess
 
 
 def main():
@@ -39,6 +42,23 @@ def make_resize(path, zoom):
 
 
 def _resize(path, zoom):
+    return _resize_2(path, zoom)
+
+    import time
+    t0=time.time()
+    r = _resize_1(path, zoom)
+    t1=time.time()
+    print "USING PIL", r, (t1-t0), "seconds"
+
+    t0=time.time()
+    r2 = _resize_2(path, zoom)
+    t1=time.time()
+    print "USING CONVERT", r2, (t1-t0), "seconds"
+
+    return r
+
+
+def _resize_1(path, zoom):
     width = 256 * (2 ** zoom)
     im = Image.open(path)
     x, y = [float(v) for v in im.size]
@@ -48,11 +68,35 @@ def _resize(path, zoom):
     start, ext = os.path.splitext(path)
     save_path = path.replace(
         ext,
-        '-%s-%s-%s%s' % (zoom, w, h, ext)
+        '-%s-%s%s' % (zoom, w, ext)
     )
     im = im.resize((w, h), resample=Image.ANTIALIAS)
     im.save(save_path)
     del im
+    return save_path
+
+
+def _resize_2(path, zoom):
+    width = 256 * (2 ** zoom)
+    start, ext = os.path.splitext(path)
+    save_path = path.replace(
+        ext,
+        '-%s-%s%s' % (zoom, width, ext)
+    )
+    cmd = 'convert %s -resize %d %s' % (path, width, save_path)
+    process = subprocess.Popen(
+        cmd,
+        shell=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE
+    )
+    out, err = process.communicate()
+    #print "OUT"
+    #print repr(out)
+    #print "ERR"
+    if err:
+        logging.warning("resizer: %s" % err)
+    #print repr(err)
     return save_path
 
 

@@ -14,7 +14,7 @@ from tornado_utils.routes import route
 from rq import Queue
 from utils import mkdir, make_tile, make_tiles
 from optimizer import optimize_images
-#from resizer import make_resize
+from resizer import make_resize
 
 
 class BaseHandler(tornado.web.RequestHandler):
@@ -135,8 +135,6 @@ class PreviewUploadHandler(UploadHandler):
                 400,
                 "Unrecognized content type '%s'" % content_type
             )
-        print head_response.headers
-        pprint(dict(head_response.headers))
         try:
             expected_size = int(head_response.headers['Content-Length'])
         except KeyError:
@@ -227,8 +225,8 @@ class DownloadUploadHandler(UploadHandler):
             ranges.remove(self.DEFAULT_ZOOM)
             ranges.insert(0, self.DEFAULT_ZOOM)
             q = Queue(connection=self.redis)
-            #for zoom in ranges:
-            #    q.enqueue(make_resize, destination, zoom)
+            for zoom in ranges:
+                q.enqueue(make_resize, destination, zoom)
 
             cols = 15
             rows = 15

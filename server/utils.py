@@ -35,12 +35,12 @@ def scale_and_crop(path, requested_size, row, col, zoom, image):
     box = (256 * row, 256 * col, 256 * (row + 1), 256 * (col + 1))
 
     w, h = int(round(x * r)), int(round(y * r))
-    _cache_key = '%s-%s-%s-%s' % (image, zoom, w, h)
+    _cache_key = '%s-%s-%s' % (image, zoom, w)
     pathname, extension = os.path.splitext(path)
 
     _resized_file = path.replace(
         extension,
-        '-%s-%s-%s%s' % (zoom, w, h, extension)
+        '-%s-%s%s' % (zoom, w, extension)
     )
 
     already = _RESIZES.get(_cache_key)
@@ -134,7 +134,7 @@ def make_tile(image, size, zoom, row, col, extension, static_path):
             image=image,
         )
         if cropped_image is not None:
-            print "Created", save_filepath
+            #print "Created", save_filepath
             cropped_image.save(save_filepath)
 
     return save_filepath
