@@ -130,11 +130,23 @@ class PreviewUploadHandler(UploadHandler):
             self.write({'error': head_response.body})
             return
         content_type = head_response.headers['Content-Type']
+        pprint(dict(head_response.headers))
         if content_type not in ('image/jpeg', 'image/png'):
-            raise tornado.web.HTTPError(
-                400,
-                "Unrecognized content type '%s'" % content_type
-            )
+            if ((url.lower().endswith('.jpg') or url.lower().endswith('.png'))
+                and head_response.headers.get('Content-Length')):
+                logging.warning("Possibly not an image")
+
+                if url.lower().endswith('.jpg'):
+                    content_type = 'image/jpeg'
+                elif url.lower().endswith('.png'):
+                    content_type = 'image/png'
+                else:
+                    content_type = 'unknown'
+            else:
+                raise tornado.web.HTTPError(
+                    400,
+                    "Unrecognized content type '%s'" % content_type
+                )
         try:
             expected_size = int(head_response.headers['Content-Length'])
         except KeyError:
@@ -142,11 +154,6 @@ class PreviewUploadHandler(UploadHandler):
             logging.warning("No Content-Length (content-encoding:%r)" %
                             head_response.headers.get('Content-Encoding', ''))
             expected_size = 0
-        if content_type not in ('image/jpeg', 'image/png'):
-            raise tornado.web.HTTPError(
-                400,
-                "Unrecognized content type '%s'" % content_type
-            )
 
         fileid = uuid.uuid4().hex[:9]
         self.redis.set('fileid:%s' % fileid, url)
