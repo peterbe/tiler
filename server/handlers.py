@@ -4,6 +4,7 @@ import urllib
 import uuid
 import functools
 import logging
+import hashlib
 from pprint import pprint
 
 import tornado.web
@@ -15,6 +16,7 @@ from rq import Queue
 from utils import mkdir, make_tile, make_tiles
 from optimizer import optimize_images
 from resizer import make_resize
+import settings
 
 
 class BaseHandler(tornado.web.RequestHandler):
@@ -32,6 +34,34 @@ class BaseHandler(tornado.web.RequestHandler):
     def queue(self):
         return self.application.queue
 
+    def get_current_user(self):
+        return self.get_secure_cookie('user')
+
+    def render(self, template, **options):
+        options['user'] = self.get_current_user()
+        options['debug'] = self.application.settings['debug']
+        if options['user']:
+            options['gravatar_url'] = self._get_gravatar_url(options['user'])
+        return super(BaseHandler, self).render(template, **options)
+
+    def _get_gravatar_url(self, email):
+        base_url = '%s://%s' % (self.request.protocol, self.request.host)
+        default = base_url + self.static_url('images/anonymous_32.png')
+        size = 32
+
+        # construct the url
+        gravatar_url = (
+            "http://www.gravatar.com/avatar/" +
+            hashlib.md5(email.lower()).hexdigest() +
+            "?" +
+            urllib.urlencode({
+                'd': default,
+                's': str(size)
+            })
+        )
+
+        return gravatar_url
+
 
 @route('/', name='home')
 class HomeHandler(BaseHandler):
@@ -39,11 +69,6 @@ class HomeHandler(BaseHandler):
         data = {}
         data['recent_fileids'] = self.redis.lrange('fileids', 0, 4)
         self.render('index.html', **data)
-
-
-class DropboxHandler(BaseHandler):
-    def get(self):
-        self.render('dropbox.html')
 
 
 @route('/(\w{9})', 'image')
@@ -82,7 +107,6 @@ class ImageHandler(BaseHandler):
 class UploadHandler(BaseHandler):
 
     def get(self):
-        #assert self.get_secure_cookie('user'), "not logged in"
         self.render('upload.html')
 
     def make_destination(self, fileid):
@@ -119,7 +143,8 @@ class PreviewUploadHandler(UploadHandler):
     @tornado.gen.engine
     def post(self):
         url = self.get_argument('url')
-        #assert self.get_secure_cookie('user'), "not logged in"
+        if not self.get_current_user():
+            raise tornado.web.HTTPError(403, "You must be logged in")
         http_client = tornado.httpclient.AsyncHTTPClient()
         head_response = yield tornado.gen.Task(
             http_client.fetch,
@@ -130,7 +155,6 @@ class PreviewUploadHandler(UploadHandler):
             self.write({'error': head_response.body})
             return
         content_type = head_response.headers['Content-Type']
-        pprint(dict(head_response.headers))
         if content_type not in ('image/jpeg', 'image/png'):
             if ((url.lower().endswith('.jpg') or url.lower().endswith('.png'))
                 and head_response.headers.get('Content-Length')):
@@ -157,6 +181,7 @@ class PreviewUploadHandler(UploadHandler):
 
         fileid = uuid.uuid4().hex[:9]
         self.redis.set('fileid:%s' % fileid, url)
+        self.redis.set('user:%s' % fileid, self.get_current_user())
         self.redis.setex(
             'contenttype:%s' % fileid,
             content_type,
@@ -179,6 +204,8 @@ class PreviewUploadHandler(UploadHandler):
 class ProgressUploadHandler(UploadHandler):
 
     def get(self):
+        if not self.get_current_user():
+            raise tornado.web.HTTPError(403, "You must be logged in")
         fileid = self.get_argument('fileid')
         destination = self.make_destination(fileid)
         data = {
@@ -201,6 +228,8 @@ class DownloadUploadHandler(UploadHandler):
     @tornado.web.asynchronous
     @tornado.gen.engine
     def post(self):
+        if not self.get_current_user():
+            raise tornado.web.HTTPError(403, "You must be logged in")
         fileid = self.get_argument('fileid')
         url = self.redis.get('fileid:%s' % fileid)
         #assert self.get_secure_cookie('user'), "not logged in"
@@ -214,7 +243,7 @@ class DownloadUploadHandler(UploadHandler):
             http_client.fetch,
             url,
             headers={},
-            request_timeout=100.0,  # 20.0 is the default
+            request_timeout=200.0,  # 20.0 is the default
             streaming_callback=functools.partial(my_streaming_callback,
                                                  destination_file)
         )
@@ -275,44 +304,46 @@ class DownloadUploadHandler(UploadHandler):
         self.finish()
 
 
-@route('/signout/', 'signout')
+@route('/auth/signout/', 'signout')
 class SignoutHandler(BaseHandler):
     def get(self):
+        self.write("Must use POST")
+
+    def post(self):
         self.clear_cookie('user')
         self.redirect('/')
 
 
-@route('/browserid/', 'browserid')
+@route('/auth/browserid/', 'browserid')
 class BrowserIDAuthLoginHandler(BaseHandler):
 
     def check_xsrf_cookie(self):
         pass
 
     @tornado.web.asynchronous
+    @tornado.gen.engine
     def post(self):
         assertion = self.get_argument('assertion')
         http_client = tornado.httpclient.AsyncHTTPClient()
-        domain = self.request.host
         url = 'https://browserid.org/verify'
         data = {
             'assertion': assertion,
-            'audience': domain,
+            'audience': settings.BROWSERID_DOMAIN,
         }
-        http_client.fetch(
+        response = yield tornado.gen.Task(
+            http_client.fetch,
             url,
             method='POST',
             body=urllib.urlencode(data),
-            callback=self.async_callback(self._on_response)
         )
-
-    def _on_response(self, response):
         if 'email' in response.body:
             # all is well
             struct = tornado.escape.json_decode(response.body)
             assert struct['email']
             email = struct['email']
-
-            self.set_secure_cookie('user', email, expires_days=10)
+            self.set_secure_cookie('user', email, expires_days=90)
+        else:
+            struct = {'error': 'Email could not be verified'}
         self.write(struct)
         self.finish()
 

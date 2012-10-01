@@ -14,7 +14,6 @@
     <div class="eight columns">
       <h3>Getting Started</h3>
 
-      <p><a href="/dropbox">Dropbox</a></p>
       <p><a href="{{ reverse_url('upload') }}">Upload by URL</a></p>
 
     </div>
@@ -28,10 +27,6 @@
         {% for i, each in enumerate(recent_fileids) %}
         <li><a href="{{ reverse_url('image', each) }}">Example {{ i+1 }}</a></li>
         {% end %}
-        <!--
-        <li><a href="{{ reverse_url('image', '7ed3b5876') }}">Example 1</a></li>
-	<li><a href="{{ reverse_url('image', 'acb833277') }}">Example 2</a></li>
-        -->
       </ul>
     </div>
   </div>

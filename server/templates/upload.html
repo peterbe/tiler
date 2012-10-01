@@ -16,11 +16,12 @@ form button { font-size: 150%; }
 
   <div class="row">
     <div class="twelve columns">
+      {% if user %}
       <form>
 
         <div>
           <label>URL:</label>
-          <input name="url" style="font-size:150%">
+          <input name="url" style="font-size:150%;width:450px">
           <button>Go!</button>
         </div>
 
@@ -37,6 +38,12 @@ form button { font-size: 150%; }
              alt="Powered By Filepicker.io"></a>
         </p>
       </form>
+      {% else %}
+      <div class="error">
+        <h3>Not logged in</h3>
+	<p>You <strong>have to be signed in</strong> to be able to upload large pictures.</p>
+      </div>
+      {% end %}
     </div>
 
 
