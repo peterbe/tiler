@@ -1,3 +1,4 @@
 server/local_settings.py
 server/static/tiles/
 server/static/uploads/
+server/static/thumbnails/

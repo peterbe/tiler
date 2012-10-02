@@ -76,6 +76,59 @@ def scale_and_crop(path, requested_size, row, col, zoom, image):
     return im.crop(box)
 
 
+def make_thumbnail(image, width, extension, static_path):
+    root = os.path.join(
+        static_path,
+        'uploads'
+    )
+    save_root = os.path.join(
+        static_path,
+        'thumbnails'
+    )
+    if not os.path.isdir(save_root):
+        os.mkdir(save_root)
+
+    path = os.path.join(root, image)
+    for i in ('.png', '.jpg'):
+        path = os.path.join(root, image + i)
+        if os.path.isfile(path):
+            break
+    else:
+        raise IOError(image)
+
+    save_filepath = save_root
+    save_filepath = os.path.join(save_filepath, image)
+    if not os.path.isdir(save_filepath):
+        mkdir(save_filepath)
+
+    save_filepath = os.path.join(
+        save_filepath,
+        '%s.%s' % (width, extension)
+    )
+    if not os.path.isfile(save_filepath):
+        thumbnail_image = _make_thumbnail(
+            path,
+            width,
+            image=image,
+        )
+        if thumbnail_image is not None:
+            #print "Created", save_filepath
+            thumbnail_image.save(save_filepath)
+
+    return save_filepath
+
+def _make_thumbnail(path, width, image):
+    im = Image.open(path)
+    x, y = [float(v) for v in im.size]
+    xr, yr = [float(v) for v in (width, width)]
+    r = min(xr / x, yr / y)
+    w, h = int(round(x * r)), int(round(y * r))
+    im = im.resize((w, h),
+                   resample=Image.ANTIALIAS)
+    return im
+
+
+
 def make_tile(image, size, zoom, row, col, extension, static_path):
 
     size = int(size)

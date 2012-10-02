@@ -25,7 +25,9 @@
 
       <ul class="disc">
         {% for i, each in enumerate(recent_fileids) %}
-        <li><a href="{{ reverse_url('image', each) }}">Example {{ i+1 }}</a></li>
+        <li><a href="{{ reverse_url('image', each) }}">Example {{ i+1 }}</a>
+        <img src="{% module ThumbnailURL(each, 100, 'png') %}">
+        </li>
         {% end %}
       </ul>
     </div>

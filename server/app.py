@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+import re
 from time import sleep
 import tornado.httpserver
 import tornado.ioloop
@@ -36,7 +37,7 @@ class Application(tornado.web.Application):
 
     def __init__(self, database_name=None, optimize_static_content=None):
         ui_modules_map = {}
-        for each in ():#('core.ui_modules', 'admin.ui_modules'):
+        for each in ('ui_modules',):# 'admin.ui_modules'):
             _ui_modules = __import__(each, globals(), locals(),
                                      ['ui_modules'], -1)
             for name in [x for x in dir(_ui_modules)

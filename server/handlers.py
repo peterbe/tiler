@@ -13,7 +13,7 @@ import tornado.httpclient
 import tornado.curl_httpclient
 from tornado_utils.routes import route
 from rq import Queue
-from utils import mkdir, make_tile, make_tiles
+from utils import mkdir, make_tile, make_tiles, make_thumbnail
 from optimizer import optimize_images
 from resizer import make_resize
 import settings
@@ -295,6 +295,15 @@ class DownloadUploadHandler(UploadHandler):
                     self.application.settings['static_path']
                 )
 
+            # it's important to know how the thumbnail needs to be generated
+            q.enqueue(
+                make_thumbnail,
+                image_split,
+                100,
+                'png',
+                self.application.settings['static_path']
+            )
+
             self.write({'url': '/%s' % fileid})  # reverse_url()
         else:
             try:
@@ -384,6 +393,40 @@ class TileHandler(BaseHandler):
             )
             self.write(open(broken_filepath, 'rb').read())
 
+
+@route(r'/thumbnails/(?P<image>\w{1}/\w{2}/\w{6})/(?P<width>\w{1,3})'
+       r'.(?P<extension>png|jpg)',
+       name='thumbail')
+class TileHandler(BaseHandler):
+
+    def get(self, image, width, extension):
+        #
+        width = int(width)
+        assert width > 0 and width < 1000, width
+
+        thumbnail_filepath = make_thumbnail(
+            image,
+            width,
+            extension,
+            self.application.settings['static_path']
+        )
+        if extension == 'png':
+            self.set_header('Content-Type', 'image/png')
+        elif extension == 'jpg':
+            self.set_header('Content-Type', 'image/jpeg')
+        else:
+            raise ValueError(extension)
+
+        if thumbnail_filepath:
+            self.write(open(thumbnail_filepath, 'rb').read())
+        else:
+            self.set_header('Content-Type', 'image/png')
+            thumbnail_filepath = os.path.join(
+                self.application.settings['static_path'],
+                'images',
+                'broken.png'
+            )
+        self.write(open(thumbnail_filepath, 'rb').read())
 
 # this handler gets automatically appended last to all handlers inside app.py
 class PageNotFoundHandler(BaseHandler):
