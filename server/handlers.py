@@ -19,6 +19,11 @@ from resizer import make_resize
 import settings
 
 
+def sample_queue_job():
+    # used to check that the queue workers are awake
+    return "OK"
+
+
 class BaseHandler(tornado.web.RequestHandler):
 
     DEFAULT_RANGE_MIN = 2
