@@ -10,7 +10,6 @@
 
     <title>Tiler</title>
 
-    {% block css %}
     <link rel="stylesheet" href="{{ static_url('css/foundation.min.css') }}">
     <link rel="stylesheet" href="{{ static_url('css/libs/persona-buttons.css') }}">
     <link rel="stylesheet" href="{{ static_url('css/app.css') }}">
@@ -19,12 +18,11 @@
     <!--[if lt IE 9]>
       <script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
     <![endif]-->
-    {% end %}
 
     {% block extra_head %}
     {% end %}
   </head>
-  <body {% block body_tag %}{% end %}>
+  <body>
 
   {% block nav %}
   <div id="nav">

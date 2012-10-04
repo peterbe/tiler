@@ -101,6 +101,7 @@ class ImageHandler(BaseHandler):
         assert extension in ('png', 'jpg'), extension
         self.render(
             'image.html',
+            page_title='/%s' % fileid,
             image_filename=image_filename,
             ranges=ranges,
             default_zoom=default_zoom,
