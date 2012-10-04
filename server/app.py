@@ -106,7 +106,7 @@ def main():  # pragma: no cover
     for i in range(10):
         if job.result:
             break
-        sleep(0.1)
+        sleep(i / 10.0)
         if i > 0 and not i % 3:
             print "Waiting to see if Queue workers are awake..."
     else:
