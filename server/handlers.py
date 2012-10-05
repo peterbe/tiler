@@ -258,6 +258,19 @@ class DownloadUploadHandler(UploadHandler):
 
             self.redis.lpush('fileids', fileid)
 
+            image_split = fileid[:1] + '/' + fileid[1:3] + '/' + fileid[3:]
+
+            # it's important to know how the thumbnail needs to be generated
+            # and it's important to do the thumbnail soon since otherwise
+            # it might severly delay the home page where the thumbnail is shown
+            q.enqueue(
+                make_thumbnail,
+                image_split,
+                100,
+                'png',
+                self.application.settings['static_path']
+            )
+
             ranges = range(
                 self.DEFAULT_RANGE_MIN,
                 self.DEFAULT_RANGE_MAX + 1
@@ -270,9 +283,8 @@ class DownloadUploadHandler(UploadHandler):
             for zoom in ranges:
                 q.enqueue(make_resize, destination, zoom)
 
-            cols = 15
-            rows = 15
-            image_split = fileid[:1] + '/' + fileid[1:3] + '/' + fileid[3:]
+            cols = 20
+            rows = 20
             extension = destination.split('.')[-1]
             for zoom in ranges:
                 q.enqueue(
@@ -295,15 +307,6 @@ class DownloadUploadHandler(UploadHandler):
                     extension,
                     self.application.settings['static_path']
                 )
-
-            # it's important to know how the thumbnail needs to be generated
-            q.enqueue(
-                make_thumbnail,
-                image_split,
-                100,
-                'png',
-                self.application.settings['static_path']
-            )
 
             self.write({'url': '/%s' % fileid})  # reverse_url()
         else:
