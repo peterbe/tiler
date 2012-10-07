@@ -6,6 +6,7 @@ import functools
 import logging
 import hashlib
 import time
+import datetime
 from pprint import pprint
 
 import tornado.web
@@ -13,8 +14,10 @@ import tornado.gen
 import tornado.httpclient
 import tornado.curl_httpclient
 import tornado.ioloop
+from PIL import Image
 from tornado_utils.routes import route
 from rq import Queue
+import motor
 from utils import mkdir, make_tile, make_tiles, make_thumbnail
 from optimizer import optimize_images
 from resizer import make_resize
@@ -36,6 +39,10 @@ class BaseHandler(tornado.web.RequestHandler):
     @property
     def redis(self):
         return self.application.redis
+
+    @property
+    def db(self):
+        return self.application.db
 
     @property
     def queue(self):
@@ -72,13 +79,23 @@ class BaseHandler(tornado.web.RequestHandler):
 
 @route('/', name='home')
 class HomeHandler(BaseHandler):
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
     def get(self):
         data = {}
-        data['recent_fileids_rows'] = []
-        for i in range(4):
-            row = self.redis.lrange('fileids', i, i + 3)
-
-            data['recent_fileids_rows'].append(row)
+        data['recent_images_rows'] = []
+        cursor = self.db.images.find().sort([('date', -1)]).limit(12)
+        image = yield motor.Op(cursor.next_object)
+        row = []
+        while image:
+            row.append(image)
+            image = yield motor.Op(cursor.next_object)
+            if len(row) == 4:
+                data['recent_images_rows'].append(row)
+                row = []
+        if row:
+            data['recent_images_rows'].append(row)
         self.render('index.html', **data)
 
 
@@ -192,18 +209,29 @@ class PreviewUploadHandler(UploadHandler):
             expected_size = 0
 
         fileid = uuid.uuid4().hex[:9]
-        self.redis.set('fileid:%s' % fileid, url)
-        self.redis.set('user:%s' % fileid, self.get_current_user())
+        document = {
+            'fileid': fileid,
+            'source': url,
+            'date': datetime.datetime.utcnow()
+        }
+        document['user'] = self.get_current_user()
         self.redis.setex(
             'contenttype:%s' % fileid,
             content_type,
             60 * 60
         )
+        document['contenttype'] = content_type
         self.redis.setex(
             'expectedsize:%s' % fileid,
             expected_size,
             60 * 60
         )
+        if expected_size:
+            document['size'] = expected_size
+        yield motor.Op(self.db.images.insert, document, safe=False)
+        #print repr(result), type(result)
+        #print "Result", repr(result)
+        #print dir(result)
         self.write({
             'fileid': fileid,
             'content_type': content_type,
@@ -243,8 +271,11 @@ class DownloadUploadHandler(UploadHandler):
         if not self.get_current_user():
             raise tornado.web.HTTPError(403, "You must be logged in")
         fileid = self.get_argument('fileid')
-        url = self.redis.get('fileid:%s' % fileid)
-        #assert self.get_secure_cookie('user'), "not logged in"
+        document = yield motor.Op(
+            self.db.images.find_one,
+            {'fileid': fileid}
+        )
+        url = document['source']
         tornado.httpclient.AsyncHTTPClient.configure(
             tornado.curl_httpclient.CurlAsyncHTTPClient
         )
@@ -261,8 +292,12 @@ class DownloadUploadHandler(UploadHandler):
         )
         destination_file.close()
         if response.code == 200:
-
-            self.redis.lpush('fileids', fileid)
+            size = Image.open(destination).size
+            yield motor.Op(
+                self.db.images.update,
+                {'_id': document['_id']},
+                {'$set': {'width': size[0], 'height': size[1]}}
+            )
 
             image_split = fileid[:1] + '/' + fileid[1:3] + '/' + fileid[3:]
             q = Queue(connection=self.redis)
@@ -278,10 +313,10 @@ class DownloadUploadHandler(UploadHandler):
             for zoom in ranges:
                 q.enqueue(make_resize, destination, zoom)
 
-            cols = 20
-            rows = 20
             extension = destination.split('.')[-1]
             for zoom in ranges:
+                width = 256 * (2 ** zoom)
+                cols = rows = width / 256
                 q.enqueue(
                     make_tiles,
                     image_split,

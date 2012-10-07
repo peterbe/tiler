@@ -9,6 +9,7 @@ from tornado.options import define, options
 from tornado_utils.routes import route
 import redis.client
 from rq import Queue
+import motor
 import settings
 import handlers
 
@@ -19,7 +20,6 @@ define("dont_optimize_static_content", default=False,
        help="Don't combine static resources", type=bool)
 define("dont_embed_static_url", default=False,
        help="Don't put embed the static URL in static_url()", type=bool)
-
 
 
 class Application(tornado.web.Application):
@@ -35,9 +35,17 @@ class Application(tornado.web.Application):
             )
         return self._redis
 
+    _db_connection = None
+
+    @property
+    def db(self):
+        if not self._db_connection:
+            self._db_connection = motor.MotorConnection().open_sync()
+        return self._db_connection[settings.DATABASE_NAME]
+
     def __init__(self, database_name=None, optimize_static_content=None):
         ui_modules_map = {}
-        for each in ('ui_modules',):# 'admin.ui_modules'):
+        for each in ('ui_modules',):
             _ui_modules = __import__(each, globals(), locals(),
                                      ['ui_modules'], -1)
             for name in [x for x in dir(_ui_modules)
@@ -80,24 +88,21 @@ class Application(tornado.web.Application):
             cdn_prefix=cdn_prefix,
             CLOSURE_LOCATION=os.path.join(os.path.dirname(__file__),
                                           "static", "compiler.jar"),
-
-
         )
         routed_handlers.append(
-          tornado.web.url('/.*?',
-                          handlers.PageNotFoundHandler,
-                          name='page_not_found')
+            tornado.web.url('/.*?',
+                            handlers.PageNotFoundHandler,
+                            name='page_not_found')
         )
         super(Application, self).__init__(routed_handlers, **app_settings)
 
-
-
+        self.db  # property gets created
 
 
 def main():  # pragma: no cover
     tornado.options.parse_command_line()
 
-    q=Queue(connection=redis.client.Redis(
+    q = Queue(connection=redis.client.Redis(
         settings.REDIS_HOST,
         settings.REDIS_PORT
     ))

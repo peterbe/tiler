@@ -1,5 +1,12 @@
 {% extends "base.html" %}
 
+    {% block extra_head %}
+    <style type="text/css">
+    .example img { float:left; margin-right: 5px; }
+    .example .url { font-weight: bold; }
+    </style>
+    {% end %}
+
 {% block main %}
 
       <div class="hero-unit">
@@ -8,13 +15,20 @@
         <p><a href="{{ reverse_url('upload') }}" class="btn btn-primary btn-large">Get started &raquo;</a></p>
       </div>
 
-      {% for i, recent_fileids in enumerate(recent_fileids_rows) %}
+      {% for i, images in enumerate(recent_images_rows) %}
       <div class="row">
-        {% for j, each in enumerate(recent_fileids) %}
-        <div class="span3">
+        {% for j, image in enumerate(images) %}
+        <div class="span3 example">
           <h3>Example {{ (i * 4) + (j + 1) }}</h3>
-	  <a href="{{ reverse_url('image', each) }}"><img src="{% module ThumbnailURL(each, 100, 'png') %}" alt="Screenshot"></a>
-          <p><a class="btn" href="{{ reverse_url('image', each) }}">Browse &raquo;</a></p>
+	  <a href="{{ reverse_url('image', image['fileid']) }}"
+          ><img class="thumbnail img-polaroid" src="{% module ThumbnailURL(image['fileid'], 100, 'png') %}" alt="Screenshot"></a>
+          <p>
+            {% module ShowFileSize(image['size']) %} &ndash;
+            {% module Thousands(image['width']) %} &times; {% module Thousands(image['height']) %}
+            <br>
+            uploaded {% module TimeSince(image['date']) %} ago<br>
+            <a class="url" href="{{ reverse_url('image', image['fileid']) }}">Check it out &raquo;</a>
+          </p>
         </div>
 	{% end %}
       </div>
