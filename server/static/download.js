@@ -8,6 +8,7 @@ var Download = (function() {
   }
 
   function start(url) {
+      $('#preprogress').show(100);
       $.post(PREVIEW_URL, {url: url}, function(response) {
 
         if (response.error) {
@@ -15,7 +16,8 @@ var Download = (function() {
         }
 
         $('button, input').attr('disabled', 'disabled');
-        $('#progress').show(300);
+        $('#preprogress').hide();
+        $('#progress').show(100);
         _fileid = response.fileid;
 
         $('#expected_size, #left')
@@ -61,6 +63,7 @@ var Download = (function() {
               var percentage = Math.round(response.done / total * 100);
               $('#left').text(humanize.filesize(total - response.done));
               $('#percentage').text(percentage + '%');
+              $('#progress .bar').css('width', percentage + '%');
             }
           });
         }, 1000);

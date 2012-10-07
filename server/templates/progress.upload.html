@@ -1,0 +1,30 @@
+    <div id="progress" class="row" style="display:none">
+
+      <p>
+      <img class="ajax-loader" src="{{ static_url('images/ajax-loader.gif') }}" alt="Loading loading loading">
+      Processing the image...
+      </p>
+
+      <div class="progress progress-striped">
+         <div class="bar" style="width:0%;"></div>
+      </div>
+
+      <dl class="dl-horizontal">
+        <dt>Expected size:</dt>
+        <dd><code id="expected_size"></code></dd>
+
+        <dt>Content type:</dt>
+        <dd><code id="content_type"></code></dd>
+
+        <dt>Left to download:</dt>
+        <dd><code id="left"></code></dd>
+
+        <dt>Downloaded so far:</dt>
+        <dd><code id="downloaded">0</code></dd>
+
+        <dt>Percentage:</dt>
+        <dd><code id="percentage">0%</code></dd>
+      </dl>
+
+
+    </div>

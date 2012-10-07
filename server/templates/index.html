@@ -2,37 +2,23 @@
 
 {% block main %}
 
-  <div class="row">
-    <div class="twelve columns">
-      <h2>Tiler</h2>
-      <p>So you can upload HUGE pictures.</p>
-      <hr />
-    </div>
-  </div>
+      <div class="hero-unit">
+        <h1>Tiler</h1>
+        <p>When you want to upload HUGE pictures that you can zoom in on like a map.</p>
+        <p><a href="{{ reverse_url('upload') }}" class="btn btn-primary btn-large">Get started &raquo;</a></p>
+      </div>
 
-  <div class="row">
-    <div class="eight columns">
-      <h3>Getting Started</h3>
-
-      <p><a href="{{ reverse_url('upload') }}">Upload by URL</a></p>
-
-    </div>
-
-
-    <div class="four columns">
-      <h4>Examples</h4>
-      <p>Here are some examples...</p>
-
-      <ul class="disc">
-        {% for i, each in enumerate(recent_fileids) %}
-        <li><a href="{{ reverse_url('image', each) }}">Example {{ i+1 }}</a>
-        <a href="{{ reverse_url('image', each) }}"><img src="{% module ThumbnailURL(each, 100, 'png') %}"></a>
-        </li>
-        {% end %}
-      </ul>
-    </div>
-  </div>
-
+      {% for i, recent_fileids in enumerate(recent_fileids_rows) %}
+      <div class="row">
+        {% for j, each in enumerate(recent_fileids) %}
+        <div class="span3">
+          <h3>Example {{ (i * 4) + (j + 1) }}</h3>
+	  <a href="{{ reverse_url('image', each) }}"><img src="{% module ThumbnailURL(each, 100, 'png') %}" alt="Screenshot"></a>
+          <p><a class="btn" href="{{ reverse_url('image', each) }}">Browse &raquo;</a></p>
+        </div>
+	{% end %}
+      </div>
+      {% end %}
 
 
 {% end %}

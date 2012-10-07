@@ -9,22 +9,20 @@ form button { font-size: 150%; }
 {% block main %}
 
   <div class="row">
-    <div class="twelve columns">
-      <h2>Upload</h2>
-    </div>
-  </div>
 
-  <div class="row">
-    <div class="twelve columns">
       {% if user %}
-      <form>
-
-        <div>
+      <div class="span5">
+        <h2>Upload by URL</h2>
+        <form class="form-search">
           <label>URL:</label>
-          <input name="url" style="font-size:150%;width:450px">
-          <button>Go!</button>
-        </div>
+          <input name="url" placeholder="http://.../something.jpg">
+          <button type="submit" class="btn">Go!</button>
+        </form>
+      </div>
 
+      <div class="span5">
+        <h2>Upload with Filepicker.io&trade;</h2>
+        <form>
         <input onchange="files_picked(event.files)"
                data-fp-option-services="BOX,COMPUTER,DROPBOX,GOOGLE_DRIVE,FLICKR,GMAIL,IMAGE_SEARCH,URL,WEBCAM"
                data-fp-option-container="modal"
@@ -32,65 +30,31 @@ form button { font-size: 150%; }
                type="filepicker-dragdrop">
                <!-- data-fp-option-multiple="true"-->
 
+        <!--
         <p style="text-align:center;margin-top:50px">
           <a href="https://www.filepicker.io/partner/link/"
            ><img src="https://www.filepicker.io/partner/badge/white/"
              alt="Powered By Filepicker.io"></a>
         </p>
-      </form>
+        -->
+
+        </form>
+      </div>
       {% else %}
-      <div class="error">
+      <div class="error span12">
         <h3>Not logged in</h3>
 	<p>You <strong>have to be signed in</strong> to be able to upload large pictures.</p>
       </div>
       {% end %}
-    </div>
-
-
-
-    <div id="progress" class="row" style="display:none">
-
-      <p>
-      <img class="ajax-loader" src="{{ static_url('images/ajax-loader.gif') }}" alt="Loading loading loading">
-      Processing the image...
-      </p>
-
-      <dl>
-        <dt>Expected size:</dt>
-        <dd><code id="expected_size"></code></dd>
-
-        <dt>Content type:</dt>
-        <dd><code id="content_type"></code></dd>
-
-        <dt>Left to download:</dt>
-        <dd><code id="left"></code></dd>
-
-        <dt>Downloaded so far:</dt>
-        <dd><code id="downloaded">0</code></dd>
-
-        <dt>Percentage:</dt>
-        <dd><code id="percentage">0%</code></dd>
-      </dl>
-
-    </div>
-
-    <div id="complete" class="row" style="display:none; text-align:center">
-
-      <h2 style="color:green">Done!</h2>
-      <h3><a href="" id="url"></a></h3>
-
-    </div>
-
-
-    <div id="error" class="row" style="display:none">
-      <h2 style="color:red">Error :(</h2>
-      <code id="errormessage"></code>
-    </div>
-
 
   </div>
 
-
+  <div class="row">
+    {% include "preprogress.upload.html" %}
+    {% include "progress.upload.html" %}
+    {% include "complete.upload.html" %}
+    {% include "error.upload.html" %}
+  </div>
 
 
 {% end %}

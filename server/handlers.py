@@ -72,7 +72,11 @@ class BaseHandler(tornado.web.RequestHandler):
 class HomeHandler(BaseHandler):
     def get(self):
         data = {}
-        data['recent_fileids'] = self.redis.lrange('fileids', 0, 4)
+        data['recent_fileids_rows'] = []
+        for i in range(4):
+            row = self.redis.lrange('fileids', i, i + 3)
+
+            data['recent_fileids_rows'].append(row)
         self.render('index.html', **data)
 
 
@@ -259,6 +263,7 @@ class DownloadUploadHandler(UploadHandler):
             self.redis.lpush('fileids', fileid)
 
             image_split = fileid[:1] + '/' + fileid[1:3] + '/' + fileid[3:]
+            q = Queue(connection=self.redis)
 
             # it's important to know how the thumbnail needs to be generated
             # and it's important to do the thumbnail soon since otherwise
@@ -279,7 +284,6 @@ class DownloadUploadHandler(UploadHandler):
             # prepared first
             ranges.remove(self.DEFAULT_ZOOM)
             ranges.insert(0, self.DEFAULT_ZOOM)
-            q = Queue(connection=self.redis)
             for zoom in ranges:
                 q.enqueue(make_resize, destination, zoom)
 
