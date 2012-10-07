@@ -5,12 +5,14 @@ import uuid
 import functools
 import logging
 import hashlib
+import time
 from pprint import pprint
 
 import tornado.web
 import tornado.gen
 import tornado.httpclient
 import tornado.curl_httpclient
+import tornado.ioloop
 from tornado_utils.routes import route
 from rq import Queue
 from utils import mkdir, make_tile, make_tiles, make_thumbnail
@@ -265,17 +267,6 @@ class DownloadUploadHandler(UploadHandler):
             image_split = fileid[:1] + '/' + fileid[1:3] + '/' + fileid[3:]
             q = Queue(connection=self.redis)
 
-            # it's important to know how the thumbnail needs to be generated
-            # and it's important to do the thumbnail soon since otherwise
-            # it might severly delay the home page where the thumbnail is shown
-            q.enqueue(
-                make_thumbnail,
-                image_split,
-                100,
-                'png',
-                self.application.settings['static_path']
-            )
-
             ranges = range(
                 self.DEFAULT_RANGE_MIN,
                 self.DEFAULT_RANGE_MAX + 1
@@ -301,6 +292,17 @@ class DownloadUploadHandler(UploadHandler):
                     extension,
                     self.application.settings['static_path']
                 )
+
+            # it's important to know how the thumbnail needs to be generated
+            # and it's important to do the thumbnail soon since otherwise
+            # it might severly delay the home page where the thumbnail is shown
+            q.enqueue(
+                make_thumbnail,
+                image_split,
+                100,
+                'png',
+                self.application.settings['static_path']
+            )
 
             # once that's queued up we can start optimizing
             for zoom in ranges:
@@ -405,19 +407,34 @@ class TileHandler(BaseHandler):
 @route(r'/thumbnails/(?P<image>\w{1}/\w{2}/\w{6})/(?P<width>\w{1,3})'
        r'.(?P<extension>png|jpg)',
        name='thumbail')
-class TileHandler(BaseHandler):
+class ThumbnailHandler(BaseHandler):
 
+    @tornado.web.asynchronous
+    @tornado.gen.engine
     def get(self, image, width, extension):
-        #
         width = int(width)
         assert width > 0 and width < 1000, width
 
-        thumbnail_filepath = make_thumbnail(
+        # stick it on a queue
+        q = Queue(connection=self.redis)
+
+        job = q.enqueue(
+            make_thumbnail,
             image,
             width,
             extension,
             self.application.settings['static_path']
         )
+        ioloop_instance = tornado.ioloop.IOLoop.instance()
+        while True:
+            yield tornado.gen.Task(
+                ioloop_instance.add_timeout,
+                time.time() + 1
+            )
+            if job.result is not None:
+                thumbnail_filepath = job.result
+                break
+
         if extension == 'png':
             self.set_header('Content-Type', 'image/png')
         elif extension == 'jpg':
@@ -425,9 +442,7 @@ class TileHandler(BaseHandler):
         else:
             raise ValueError(extension)
 
-        if thumbnail_filepath:
-            self.write(open(thumbnail_filepath, 'rb').read())
-        else:
+        if not thumbnail_filepath:
             self.set_header('Content-Type', 'image/png')
             thumbnail_filepath = os.path.join(
                 self.application.settings['static_path'],
@@ -435,6 +450,8 @@ class TileHandler(BaseHandler):
                 'broken.png'
             )
         self.write(open(thumbnail_filepath, 'rb').read())
+        self.finish()
+
 
 # this handler gets automatically appended last to all handlers inside app.py
 class PageNotFoundHandler(BaseHandler):
