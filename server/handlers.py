@@ -76,6 +76,24 @@ class BaseHandler(tornado.web.RequestHandler):
 
         return gravatar_url
 
+    def static_url(self, path, **kwargs):
+        if self.application.settings['embed_static_url_timestamp']:
+            ui_module = self.application.ui_modules['StaticURL'](self)
+            try:
+                return ui_module.render(path, **kwargs)
+            except OSError:
+                logging.debug("%r does not exist" % path)
+        return super(BaseHandler, self).static_url(path)
+
+    def get_cdn_prefix(self):
+        """return something that can be put in front of the static filename
+        E.g. if filename is '/static/image.png' and you return
+        '//cloudfront.com' then final URL presented in the template becomes
+        '//cloudfront.com/static/image.png'
+        """
+        return self.application.settings.get('cdn_prefix')
+
+
 
 @route('/', name='home')
 class HomeHandler(BaseHandler):
@@ -102,6 +120,8 @@ class HomeHandler(BaseHandler):
 @route('/(\w{9})', 'image')
 class ImageHandler(BaseHandler):
 
+    @tornado.web.asynchronous
+    @tornado.gen.engine
     def get(self, fileid):
         image_filename = (
             fileid[:1] +
@@ -115,7 +135,22 @@ class ImageHandler(BaseHandler):
         ranges = [self.DEFAULT_RANGE_MIN, self.DEFAULT_RANGE_MAX]
         default_zoom = self.DEFAULT_ZOOM
         ## contenttype is set to expire
-        content_type = self.redis.get('contenttype:%s' % fileid)
+        content_type_key = 'contenttype:%s' % fileid
+        content_type = self.redis.get(content_type_key)
+        if content_type is None:
+            document = yield motor.Op(
+                self.db.images.find_one,
+                {'fileid': fileid}
+            )
+            if not document:
+                raise tornado.web.HTTPError(404, "File not found")
+            content_type = document['contenttype']
+            self.redis.setex(
+                content_type_key,
+                content_type,
+                60 * 60 * 24 * 100
+            )
+
         if content_type == 'image/jpeg':
             extension = 'jpg'
         elif content_type == 'image/png':

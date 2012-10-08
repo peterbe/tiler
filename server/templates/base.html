@@ -9,16 +9,10 @@
 
     <title>Tiler</title>
 
-    <!--<link rel="stylesheet" href="{{ static_url('bootstrap/css/bootstrap.min.css') }}">
-    <link rel="stylesheet" href="{{ static_url('bootstrap/css/bootstrap-responsive.min.css') }}">-->
+    <!--{% module LinkTags('bootstrap/css/bootstrap.min.css', 'bootstrap/css/bootstrap-responsive.min.css') %}-->
     <link href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.1.1/css/bootstrap-combined.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{ static_url('css/libs/persona-buttons.css') }}">
-    <link rel="stylesheet" href="{{ static_url('css/app.css') }}">
+    {% module LinkTags('css/libs/persona-buttons.css', 'css/app.css') %}
     <style type="text/css">
-      body {
-        padding-top: 60px;
-        padding-bottom: 40px;
-      }
     </style>
 
     <!-- IE Fix for HTML5 Tags -->
@@ -113,9 +107,7 @@
 
     </div> <!-- /container -->
 
-  <script src="{{ static_url('libs/jquery-1.8.2.min.js') }}"></script>
-  <script src="{{ static_url('libs/modernizr.foundation.js') }}"></script>
-  <script src="{{ static_url('authentication.js') }}"></script>
+  {% module ScriptTags('libs/jquery-1.8.2.min.js', 'authentication.js') %}
   <script src="https://login.persona.org/include.js"></script>
 
   {% block extra_js %}

@@ -68,6 +68,6 @@ var PREVIEW_URL = '{{ reverse_url('upload_preview') }}';
 var REALLY_URL = '{{ reverse_url('upload_download') }}';
 var PROGRESS_URL = '{{ reverse_url('upload_progress') }}';
 </script>
-<script src="{{ static_url('libs/humanize.js') }}"></script>
-<script src="{{ static_url('download.js') }}"></script>
+
+{% module ScriptTags('libs/humanize.js', 'download.js') %}
 {% end %}

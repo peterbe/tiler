@@ -5,7 +5,7 @@ from tornado_utils.timesince import smartertimesince
 class ThumbnailURL(tornado.web.UIModule):
 
     def render(self, fileid, width, extension='png'):
-        return '/thumbnails/%s/%s/%s/%s.%s' % (
+        return '/static/thumbnails/%s/%s/%s/%s.%s' % (
             fileid[:1],
             fileid[1:3],
             fileid[3:],
@@ -47,3 +47,34 @@ class Thousands(tornado.web.UIModule):
 
     def render(self, number):
         return commafy(str(number))
+
+
+class LinkTags(tornado.web.UIModule):
+
+    def render(self, *uris):
+        if self.handler.application.settings['optimize_static_content']:
+            module = self.handler.application.ui_modules['Static'](self.handler)
+            return module.render(*uris)
+
+        html = []
+        for each in uris:
+            html.append('<link href="%s" rel="stylesheet" type="text/css">' %
+                         self.handler.static_url(each))
+        return '\n'.join(html)
+
+
+class ScriptTags(tornado.web.UIModule):
+
+    def render(self, *uris, **attrs):
+        if self.handler.application.settings['optimize_static_content']:
+            module = self.handler.application.ui_modules['Static'](self.handler)
+            return module.render(*uris, **attrs)
+
+        html = []
+        for each in uris:
+            tag = '<script '
+            if attrs.get('async'):
+                tag += 'async '
+            tag += 'src="%s"></script>' % self.handler.static_url(each)
+            html.append(tag)
+        return '\n'.join(html)
