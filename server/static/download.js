@@ -1,10 +1,84 @@
+var Utils = (function() {
+  return {
+    preload_image: function(url, callback) {
+      var i = $('<img>');
+      if (callback) {
+        i.ready(callback);
+      }
+      i.attr('src', url);
+    },
+    preload_images: function(urls, synchronous, callback) {
+      if (synchronous) {
+        var url = urls.shift();
+        if (url) {
+          Utils.preload_image(url, function() {
+            Utils.preload_images(urls, true, callback); // "recurse"
+          });
+        } else {
+          callback();
+        }
+      } else {
+        $.each(urls, function(i, url) {
+          Utils.preload_image(url);
+        });
+        callback();
+      }
+    }
+  };
+})();
+
 var Download = (function() {
   var _progress_interval;
   var _fileid;
+  var _preload_timer;
+  var _preload_urls = [];
+  var _loaded_urls = [];
+  var preload_interval = 1;
+  var _has_completed = false;
 
   function show_error(message) {
     $('#errormessage').text(message);
     $('#error').fadeIn(300);
+  }
+
+  function preload() {
+    //console.log('--fetching--', preload_interval);
+    $.getJSON('/preload-urls/' + _fileid, function(response) {
+      $.each(response.urls, function(i, url) {
+        if ($.inArray(url, _loaded_urls) == -1) {
+          // not been loaded before
+          _preload_urls.push(url);
+        }
+      });
+      if (_preload_urls.length) {
+        _do_preload();
+      }
+      if (_loaded_urls.length) {
+        // it has begun
+        preload_interval *= 2;
+      }
+      start_preloading();
+    });
+  }
+
+  function _do_preload() {
+    $.each(_preload_urls, function(i, url) {
+      _loaded_urls.push(url);
+    });
+    Utils.preload_images(_preload_urls, true, function() {
+      _preload_urls = [];
+      if (!_has_completed) {
+        _has_completed = true;
+        $('#precomplete').hide();
+        $('#complete').hide().fadeIn(1000);
+      }
+    });
+  }
+
+  function start_preloading() {
+    _preload_timer = setTimeout(function() {
+      preload(_fileid);
+    }, preload_interval * 1000);
   }
 
   function start(url) {
@@ -25,7 +99,7 @@ var Download = (function() {
           .data('total', response.expected_size);
         if (!response.expected_size) {
           $('#expected_size, #left')
-            .text('not known :(')
+            .text('not known :(');
         }
         $('#content_type').text(response.content_type);
 
@@ -35,13 +109,14 @@ var Download = (function() {
            data: {fileid: _fileid},
           success: function(response) {
             clearInterval(_progress_interval);
-            $('#progress').fadeOut(300);
+            $('#progress').hide();
             if (response.error) {
               return show_error(response.error);
             }
             var base_url = location.href.replace(location.pathname, '');
             $('#url').text(base_url + response.url).attr('href', response.url);
-            $('#complete').fadeIn(900);
+            $('#precomplete').show();
+            start_preloading();
           },
           error: function(xhr, status, error_thrown) {
             clearInterval(_progress_interval);

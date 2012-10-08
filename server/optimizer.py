@@ -15,7 +15,9 @@ def optimize_images(image, zoom, extension, static_path):
     search_path = os.path.join(root, '*.%s' % extension)
     files = glob(search_path)
     for each in files:
-        total_before += os.stat(each)[stat.ST_SIZE]
+        size = os.stat(each)[stat.ST_SIZE]
+        print each, "IS", size
+        total_before += size
     t0 = time.time()
     out, err = _optimize(files, extension)
     t1 = time.time()

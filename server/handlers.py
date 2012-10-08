@@ -101,6 +101,7 @@ class HomeHandler(BaseHandler):
 
 @route('/(\w{9})', 'image')
 class ImageHandler(BaseHandler):
+
     def get(self, fileid):
         image_filename = (
             fileid[:1] +
@@ -113,12 +114,14 @@ class ImageHandler(BaseHandler):
         # appropriate numbers should be here.
         ranges = [self.DEFAULT_RANGE_MIN, self.DEFAULT_RANGE_MAX]
         default_zoom = self.DEFAULT_ZOOM
+        ## contenttype is set to expire
         content_type = self.redis.get('contenttype:%s' % fileid)
         if content_type == 'image/jpeg':
             extension = 'jpg'
         elif content_type == 'image/png':
             extension = 'png'
         else:
+            print "Guessing extension :("
             extension = self.DEFAULT_EXTENSION
         extension = self.get_argument('extension', extension)
         assert extension in ('png', 'jpg'), extension
@@ -310,23 +313,41 @@ class DownloadUploadHandler(UploadHandler):
             # prepared first
             ranges.remove(self.DEFAULT_ZOOM)
             ranges.insert(0, self.DEFAULT_ZOOM)
-            for zoom in ranges:
-                q.enqueue(make_resize, destination, zoom)
-
             extension = destination.split('.')[-1]
-            for zoom in ranges:
-                width = 256 * (2 ** zoom)
-                cols = rows = width / 256
-                q.enqueue(
-                    make_tiles,
-                    image_split,
-                    256,
-                    zoom,
-                    rows,
-                    cols,
-                    extension,
-                    self.application.settings['static_path']
-                )
+
+            # The priority is important because the first impression is
+            # important.
+            # So...
+            #  1. make resize for default zoom level
+            #  2. load all tiles for default zoom level
+            #  3. make resize for all other zoom levels
+            #  4. make tiles for all other zoom levels
+            #  5. make the thumbnail(s)
+            #  6. optimize all created tiles
+
+            for second in range(2):
+                first = not second
+
+                for zoom in ranges:
+                    if ((first and zoom == self.DEFAULT_ZOOM) or
+                        (second and zoom != self.DEFAULT_ZOOM)):
+                        q.enqueue(make_resize, destination, zoom)
+
+                for zoom in ranges:
+                    if ((first and zoom == self.DEFAULT_ZOOM) or
+                        (second and zoom != self.DEFAULT_ZOOM)):
+                        width = 256 * (2 ** zoom)
+                        cols = rows = width / 256
+                        q.enqueue(
+                            make_tiles,
+                            image_split,
+                            256,
+                            zoom,
+                            rows,
+                            cols,
+                            extension,
+                            self.application.settings['static_path']
+                        )
 
             # it's important to know how the thumbnail needs to be generated
             # and it's important to do the thumbnail soon since otherwise
@@ -349,7 +370,9 @@ class DownloadUploadHandler(UploadHandler):
                     self.application.settings['static_path']
                 )
 
-            self.write({'url': '/%s' % fileid})  # reverse_url()
+            self.write({
+                'url': self.reverse_url('image', fileid),
+            })
         else:
             try:
                 os.remove(destination)
@@ -486,6 +509,33 @@ class ThumbnailHandler(BaseHandler):
             )
         self.write(open(thumbnail_filepath, 'rb').read())
         self.finish()
+
+
+@route(r'/preload-urls/(?P<fileid>\w{9})', 'preload-urls')
+class PreloadURLsHandler(BaseHandler):
+
+    def get(self, fileid):
+        root = self.application.settings['static_path']
+        path = os.path.join(root, 'tiles')
+        image_filename = (
+            fileid[:1] +
+            '/' +
+            fileid[1:3] +
+            '/' +
+            fileid[3:]
+        )
+        path = os.path.join(path, image_filename)
+        path = os.path.join(path, '256', str(self.DEFAULT_ZOOM))
+
+        urls = []
+        if os.path.isdir(path):
+            for f in os.listdir(path):
+                urls.append(os.path.join(path, f).replace(
+                    self.application.settings['static_path'],
+                    ''
+                ))
+
+        self.write({'urls': urls})
 
 
 # this handler gets automatically appended last to all handlers inside app.py
