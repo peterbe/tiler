@@ -57,9 +57,9 @@
               </li>
 	    {% end %}
             </ul>
-            <div  class="navbar-form pull-right">
+            <div class="navbar-form pull-right">
                 {% if user %}
-                <img src="{{ gravatar_url }}" alt="Picture">
+                <img class="gravatar" src="{{ gravatar_url }}" alt="Picture">
                 <a href="#" class="signout">Sign out</a>
                 {% else %}
                 <a href="#" class="persona-button dark signin"
