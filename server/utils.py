@@ -76,7 +76,16 @@ def scale_and_crop(path, requested_size, row, col, zoom, image):
     return im.crop(box)
 
 
-def make_thumbnail(image, width, extension, static_path):
+def make_thumbnail(*args, **kwargs):  # wrapper on _make_thumbnail()
+    t0 = time.time()
+    result = _make_thumbnail(*args, **kwargs)
+    t1 = time.time()
+    #logging.warning("%s seconds to make thumbnail for %s" % (t1-t0, args[0]))
+    print "%s seconds to make thumbnail for %s" % (t1-t0, args[0])
+    return result
+
+
+def _make_thumbnail(image, width, extension, static_path):
     root = os.path.join(
         static_path,
         'uploads'
@@ -106,7 +115,7 @@ def make_thumbnail(image, width, extension, static_path):
         '%s.%s' % (width, extension)
     )
     if not os.path.isfile(save_filepath):
-        thumbnail_image = _make_thumbnail(
+        thumbnail_image = _resize_thumbnail(
             path,
             width,
             image=image,
@@ -117,7 +126,7 @@ def make_thumbnail(image, width, extension, static_path):
 
     return save_filepath
 
-def _make_thumbnail(path, width, image):
+def _resize_thumbnail(path, width, image):
     im = Image.open(path)
     x, y = [float(v) for v in im.size]
     xr, yr = [float(v) for v in (width, width)]

@@ -5,7 +5,7 @@ from tornado_utils.timesince import smartertimesince
 class ThumbnailURL(tornado.web.UIModule):
 
     def render(self, fileid, width, extension='png'):
-        return '/static/thumbnails/%s/%s/%s/%s.%s' % (
+        return '/thumbnails/%s/%s/%s/%s.%s' % (
             fileid[:1],
             fileid[1:3],
             fileid[3:],

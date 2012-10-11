@@ -519,13 +519,18 @@ class ThumbnailHandler(BaseHandler):
             self.application.settings['static_path']
         )
         ioloop_instance = tornado.ioloop.IOLoop.instance()
+        delay = 0.1
+        thumbnail_filepath = None
         while True:
             yield tornado.gen.Task(
                 ioloop_instance.add_timeout,
-                time.time() + 1
+                time.time() + delay
             )
+            delay *= 2
             if job.result is not None:
                 thumbnail_filepath = job.result
+                break
+            elif delay > 2:
                 break
 
         if extension == 'png':
@@ -540,7 +545,12 @@ class ThumbnailHandler(BaseHandler):
             thumbnail_filepath = os.path.join(
                 self.application.settings['static_path'],
                 'images',
-                'broken.png'
+                'file_broken.png'
+            )
+        else:
+            self.set_header(
+                'Cache-Control',
+                'max-age=%d, public' % (60 * 60 * 24)
             )
         self.write(open(thumbnail_filepath, 'rb').read())
         self.finish()
