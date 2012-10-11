@@ -56,6 +56,11 @@ class BaseHandler(tornado.web.RequestHandler):
         options['debug'] = self.application.settings['debug']
         if options['user']:
             options['gravatar_url'] = self._get_gravatar_url(options['user'])
+        if 'page_on' not in options:
+            page_on = self.request.path.split('/')[-1]
+            if not page_on:
+                page_on = '/'
+            options['page_on'] = page_on
         return super(BaseHandler, self).render(template, **options)
 
     def _get_gravatar_url(self, email):
@@ -581,6 +586,12 @@ class PreloadURLsHandler(BaseHandler):
                 ))
 
         self.write({'urls': urls})
+
+@route(r'/about', 'about')
+class AboutHandler(BaseHandler):
+
+    def get(self):
+        self.render('about.html')
 
 
 # this handler gets automatically appended last to all handlers inside app.py

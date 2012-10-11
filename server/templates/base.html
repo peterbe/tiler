@@ -9,8 +9,8 @@
 
     <title>Tiler</title>
 
-    <!--{% module LinkTags('bootstrap/css/bootstrap.min.css', 'bootstrap/css/bootstrap-responsive.min.css') %}-->
-    <link href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.1.1/css/bootstrap-combined.min.css" rel="stylesheet">
+    {% module LinkTags('bootstrap/css/bootstrap.min.css', 'bootstrap/css/bootstrap-responsive.min.css') %}
+    <!--<link href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.1.1/css/bootstrap-combined.min.css" rel="stylesheet">-->
     {% module LinkTags('css/libs/persona-buttons.css', 'css/app.css') %}
     <style type="text/css">
     </style>
@@ -39,9 +39,9 @@
           <a class="brand" href="/">Tiler</a>
           <div class="nav-collapse collapse">
             <ul class="nav">
-              <!--<li class="active"><a href="/">Home</a></li>-->
-              <li><a href="{{ reverse_url('upload') }}">Upload</a></li>
-              <li><a href="/about">About</a></li>
+              <li {% if page_on == '/' %}class="active"{% end %}><a href="/">Home</a></li>
+              <li {% if page_on == 'upload' %}class="active"{% end %}><a href="{{ reverse_url('upload') }}">Upload</a></li>
+              <li {% if page_on == 'about' %}class="active"{% end %}><a href="{{ reverse_url('about') }}">About</a></li>
 	      {% if 0 %}
               <li class="dropdown">
                 <a href="#" class="dropdown-toggle" data-toggle="dropdown">Dropdown <b class="caret"></b></a>
@@ -107,7 +107,7 @@
 
     </div> <!-- /container -->
 
-  {% module ScriptTags('libs/jquery-1.8.2.min.js', 'authentication.js') %}
+  {% module ScriptTags('libs/jquery-1.8.2.min.js', 'bootstrap/js/bootstrap-collapse.js', 'authentication.js') %}
   <script src="https://login.persona.org/include.js"></script>
 
   {% block extra_js %}
