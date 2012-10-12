@@ -19,7 +19,7 @@ from tornado_utils.routes import route
 from rq import Queue
 import motor
 from utils import mkdir, make_tile, make_tiles, make_thumbnail
-from optimizer import optimize_images
+from optimizer import optimize_images, optimize_thumbnails
 from resizer import make_resize
 import settings
 
@@ -225,6 +225,7 @@ class PreviewUploadHandler(UploadHandler):
         )
         if not head_response.code == 200:
             self.write({'error': head_response.body})
+            self.finish()
             return
         content_type = head_response.headers['Content-Type']
         if content_type not in ('image/jpeg', 'image/png'):
@@ -239,6 +240,10 @@ class PreviewUploadHandler(UploadHandler):
                 else:
                     content_type = 'unknown'
             else:
+                if content_type == 'text/html':
+                    self.write({'error': "URL not an image. It's a web page"})
+                    self.finish()
+                    return
                 raise tornado.web.HTTPError(
                     400,
                     "Unrecognized content type '%s'" % content_type
@@ -400,6 +405,14 @@ class DownloadUploadHandler(UploadHandler):
                 self.application.settings['static_path']
             )
 
+            # pause for 2 seconds just to be sure enough images have been
+            # created before we start optimizing
+            ioloop_instance = tornado.ioloop.IOLoop.instance()
+            yield tornado.gen.Task(
+                ioloop_instance.add_timeout,
+                time.time() + 2
+            )
+
             # once that's queued up we can start optimizing
             for zoom in ranges:
                 q.enqueue(
@@ -409,6 +422,14 @@ class DownloadUploadHandler(UploadHandler):
                     extension,
                     self.application.settings['static_path']
                 )
+
+            # lastly, optimize the thumbnail too
+            q.enqueue(
+                optimize_thumbnails,
+                image_split,
+                'png',
+                self.application.settings['static_path']
+            )
 
             self.write({
                 'url': self.reverse_url('image', fileid),

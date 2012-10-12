@@ -37,12 +37,13 @@ var Download = (function() {
   var _has_completed = false;
 
   function show_error(message) {
+    $('#preprogress').hide();
+    $('#progress').hide();
     $('#errormessage').text(message);
     $('#error').fadeIn(300);
   }
 
   function preload() {
-    //console.log('--fetching--', preload_interval);
     $.getJSON('/preload-urls/' + _fileid, function(response) {
       $.each(response.urls, function(i, url) {
         if ($.inArray(url, _loaded_urls) == -1) {
@@ -81,69 +82,99 @@ var Download = (function() {
     }, preload_interval * 1000);
   }
 
-  function start(url) {
-      $('#preprogress').show(100);
-      $.post(PREVIEW_URL, {url: url}, function(response) {
+  /*
+  $( "div.log" ).ajaxError(function(e, jqxhr, settings, exception) {
+      if ( settings.url == "ajax/missing.html" ) {
+            $(this).text( "Triggered ajaxError handler." );
+      }
+  });
+   * */
 
-        if (response.error) {
-          return show_error(response.error);
-        }
+  function _really_post_success(response) {
+    clearInterval(_progress_interval);
+    $('#progress').hide();
+    if (response.error) {
+      return show_error(response.error);
+    }
+    var base_url = location.href.replace(location.pathname, '');
+    $('#url').text(base_url + response.url).attr('href', response.url);
+    $('#precomplete').show();
+    start_preloading();
+  }
 
-        $('button, input').attr('disabled', 'disabled');
-        $('#preprogress').hide();
-        $('#progress').show(100);
-        _fileid = response.fileid;
+  function _really_post_error(xhr, status, error_thrown) {
+    clearInterval(_progress_interval);
+    $('button, input').removeAttr('disabled', 'disabled');
+    $('#progress').hide();
+    var msg = status;
+    if (xhr.responseText) {
+      msg += ': ' + xhr.responseText;
+    }
+    alert(msg);
+  }
 
-        $('#expected_size, #left')
-          .text(humanize.filesize(response.expected_size))
+  function _progress_post_success(response) {
+    $('#downloaded').text(humanize.filesize(response.done));
+    var total = $('#expected_size').data('total');
+    if (total) {
+      var percentage = Math.round(response.done / total * 100);
+      $('#left').text(humanize.filesize(total - response.done));
+      $('#percentage').text(percentage + '%');
+      $('#progress .bar').css('width', percentage + '%');
+    }
+  }
+
+  function _preview_post_success(response) {
+      if (response.error) {
+        return show_error(response.error);
+      }
+
+      $('button, input').attr('disabled', 'disabled');
+      $('#preprogress').hide();
+      $('#progress').show(100);
+      _fileid = response.fileid;
+
+      $('#expected_size, #left')
+        .text(humanize.filesize(response.expected_size))
           .data('total', response.expected_size);
-        if (!response.expected_size) {
-          $('#expected_size, #left')
-            .text('not known :(');
-        }
-        $('#content_type').text(response.content_type);
+      if (!response.expected_size) {
+        $('#expected_size, #left')
+          .text('not known :(');
+      }
+      $('#content_type').text(response.content_type);
 
-        $.ajax({
-           type: 'POST',
-           url: REALLY_URL,
-           data: {fileid: _fileid},
-          success: function(response) {
-            clearInterval(_progress_interval);
-            $('#progress').hide();
-            if (response.error) {
-              return show_error(response.error);
-            }
-            var base_url = location.href.replace(location.pathname, '');
-            $('#url').text(base_url + response.url).attr('href', response.url);
-            $('#precomplete').show();
-            start_preloading();
-          },
-          error: function(xhr, status, error_thrown) {
-            clearInterval(_progress_interval);
-            $('button, input').removeAttr('disabled', 'disabled');
-            $('#progress').hide();
-            var msg = status;
-            if (xhr.responseText) {
-              msg += ': ' + xhr.responseText;
-            }
-            alert(msg);
-          }
-        });
-
-        _progress_interval = setInterval(function() {
-          $.getJSON(PROGRESS_URL, {fileid: _fileid}, function(response) {
-            $('#downloaded').text(humanize.filesize(response.done));
-            var total = $('#expected_size').data('total');
-            if (total) {
-              var percentage = Math.round(response.done / total * 100);
-              $('#left').text(humanize.filesize(total - response.done));
-              $('#percentage').text(percentage + '%');
-              $('#progress .bar').css('width', percentage + '%');
-            }
-          });
-        }, 1000);
+      $.ajax({
+         type: 'POST',
+        url: REALLY_URL,
+        data: {fileid: _fileid},
+        success: _really_post_success,
+        error: _really_post_error
       });
 
+      _progress_interval = setInterval(function() {
+        $.getJSON(PROGRESS_URL, {fileid: _fileid}, _progress_post_success);
+      }, 1000);
+  }
+
+  function _preview_post_error(xhr, status, error_thrown) {
+    $('#preprogress').hide();
+    $('button, input').removeAttr('disabled', 'disabled');
+    var msg = status;
+    if (xhr.responseText) {
+      msg += ': ' + xhr.responseText;
+    }
+    alert(msg);
+  }
+
+  function start(url) {
+    $('#preprogress').show(100);
+    $.ajax({
+       type: 'POST',
+      url: PREVIEW_URL,
+      data: {url: url},
+      success: _preview_post_success,
+      error: _preview_post_error
+    });
   }
 
   function setup() {
