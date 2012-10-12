@@ -2,6 +2,7 @@
 
 import os
 import re
+import logging
 from time import sleep
 import tornado.httpserver
 import tornado.ioloop
