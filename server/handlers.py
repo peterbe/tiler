@@ -163,8 +163,11 @@ class ImageHandler(BaseHandler):
             content_type = document['contenttype']
             owner = document['user']
             title = document.get('title', '')
-            age = int((datetime.datetime.utcnow() -
-                       document['date']).total_seconds())
+            # datetime.timedelta.total_seconds() is only in py2.6
+            #age = int((datetime.datetime.utcnow() -
+            #           document['date']).total_seconds())
+            _diff = datetime.datetime.utcnow() - document['date']
+            age = _diff.days * 60 * 60 * 24 + _diff.seconds
 
             metadata = {
                 'content_type': content_type,
