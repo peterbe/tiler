@@ -19,7 +19,11 @@
       <div class="row">
         {% for j, image in enumerate(images) %}
         <div class="span3 example">
+          {% if image.get('title') %}
+          <h3>{% module Truncate(image['title'], 20) %}</h3>
+          {% else %}
           <h3>Example {{ (i * 4) + (j + 1) }}</h3>
+          {% end %}
 	  <a href="{{ reverse_url('image', image['fileid']) }}"
           ><img class="thumbnail img-polaroid" src="{% module ThumbnailURL(image['fileid'], 100, 'png') %}" alt="Screenshot"></a>
           <p>

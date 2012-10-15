@@ -1,4 +1,5 @@
 import tornado.web
+import tornado.escape
 from tornado_utils.timesince import smartertimesince
 
 
@@ -78,3 +79,13 @@ class ScriptTags(tornado.web.UIModule):
             tag += 'src="%s"></script>' % self.handler.static_url(each)
             html.append(tag)
         return '\n'.join(html)
+
+
+class Truncate(tornado.web.UIModule):
+
+    def render(self, text, max_length):
+        if len(text) > max_length:
+            return ('%s&hellip;' %
+                    tornado.escape.xhtml_escape(text[:max_length]))
+        else:
+            return tornado.escape.xhtml_escape(text)

@@ -5,6 +5,8 @@ DATABASE_NAME = 'tiler'
 REDIS_HOST = 'localhost'
 REDIS_PORT = 6379
 
+PROJECT_TITLE = 'Tiler'
+
 # complete this in your local_settings.py to get emails sent on errors
 ADMIN_EMAILS = (
 )

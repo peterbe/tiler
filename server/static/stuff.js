@@ -3,7 +3,8 @@ $(function() {
     $(this).attr('href', location.href);
   }).on('click', function() {
     $(this).hide();
-    $('input[name="permalink"]').val(location.href).show().focus();
+    $('a.upload').hide();
+    $('input[name="permalink"]').val(location.href).show().focus().select();
     $('a.close-permalink').show();
     return false;
   });
@@ -12,6 +13,7 @@ $(function() {
     $('input[name="permalink"]').hide();
     $(this).hide();
     $('a.permalink').show();
+    $('a.upload').show();
     return false;
   });
 

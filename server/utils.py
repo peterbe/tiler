@@ -1,4 +1,5 @@
 import time
+import shutil
 import os
 from PIL import Image
 import logging
@@ -208,3 +209,30 @@ def make_tiles(image, size, zoom, rows, cols, extension, static_path):
     for row in range(rows + 1):
         for col in range(cols + 1):
             make_tile(image, size, zoom, row, col, extension, static_path)
+
+
+def delete_image(image, static_path):
+    uploads_root = os.path.join(
+        static_path,
+        'uploads'
+    )
+
+    bits = image.split('/')
+    fileid = bits.pop()
+    uploads = os.path.join(uploads_root, '/'.join(bits))
+    for f in os.listdir(uploads):
+        if fileid in f:
+            os.remove(os.path.join(uploads, f))
+
+    thumbnails_root = os.path.join(
+        static_path,
+        'thumbnails'
+    )
+    tiles_root = os.path.join(
+        static_path,
+        'tiles'
+    )
+
+    for root in (thumbnails_root, tiles_root):
+        dir_ = os.path.join(root, image)
+        shutil.rmtree(dir_)

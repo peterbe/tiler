@@ -72,7 +72,7 @@ body,html {
   height: 100% !important;
 }
 
-#nav {
+#topnav {
   position: absolute;
   top: 0;
   right: 0;
@@ -83,7 +83,7 @@ body,html {
   color: #efefef;
   border-bottom-left-radius: 10px;
 }
- #nav a {
+ #topnav a {
   color: #888888;
 }
 g circle {
@@ -92,12 +92,12 @@ g circle {
   stroke-width: 3px;
 }
 
-#nav ul li {
-  font-size: 80%;
+#topnav ul li {
+  /*font-size: 80%;*/
   display: inline;
   margin-right: 6px;
 }
-#nav input.permalink {
+#topnav input.permalink {
   font-size: 70%;
   width: 300px;
 }

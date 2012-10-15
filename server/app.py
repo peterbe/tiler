@@ -60,7 +60,7 @@ class Application(tornado.web.Application):
                     pass
 
         if optimize_static_content is None:
-            optimize_static_content = options.dont_optimize_static_content
+            optimize_static_content = not options.dont_optimize_static_content
 
         try:
             cdn_prefix = [x.strip() for x in open('cdn_prefix.conf')
@@ -73,6 +73,9 @@ class Application(tornado.web.Application):
         ui_modules_map['Static'] = tornado_static.Static
         ui_modules_map['StaticURL'] = tornado_static.StaticURL
         ui_modules_map['Static64'] = tornado_static.Static64
+        if not optimize_static_content:
+            ui_modules_map['Static'] = tornado_static.PlainStatic
+            ui_modules_map['StaticURL'] = tornado_static.PlainStaticURL
         routed_handlers = route.get_routes()
         app_settings = dict(
             template_path=os.path.join(os.path.dirname(__file__), "templates"),

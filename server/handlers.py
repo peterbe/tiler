@@ -1,6 +1,7 @@
 import os
 import stat
 import urllib
+import json
 import uuid
 import functools
 import logging
@@ -18,7 +19,7 @@ from PIL import Image
 from tornado_utils.routes import route
 from rq import Queue
 import motor
-from utils import mkdir, make_tile, make_tiles, make_thumbnail
+from utils import mkdir, make_tile, make_tiles, make_thumbnail, delete_image
 from optimizer import optimize_images, optimize_thumbnails
 from resizer import make_resize
 import settings
@@ -61,6 +62,7 @@ class BaseHandler(tornado.web.RequestHandler):
             if not page_on:
                 page_on = '/'
             options['page_on'] = page_on
+        options['PROJECT_TITLE'] = settings.PROJECT_TITLE
         return super(BaseHandler, self).render(template, **options)
 
     def _get_gravatar_url(self, email):
@@ -139,22 +141,44 @@ class ImageHandler(BaseHandler):
         # appropriate numbers should be here.
         ranges = [self.DEFAULT_RANGE_MIN, self.DEFAULT_RANGE_MAX]
         default_zoom = self.DEFAULT_ZOOM
-        ## contenttype is set to expire
-        content_type_key = 'contenttype:%s' % fileid
-        content_type = self.redis.get(content_type_key)
-        if content_type is None:
+
+        metadata_key = 'metadata:%s' % fileid
+        metadata = self.redis.get(metadata_key)
+
+        if metadata is not None:
+            metadata = json.loads(metadata)
+            content_type = metadata['content_type']
+            owner = metadata['owner']
+            title = metadata['title']
+            age = metadata['age']
+        else:
+            logging.info("Meta data cache miss (%s)" % fileid)
             document = yield motor.Op(
                 self.db.images.find_one,
                 {'fileid': fileid}
             )
             if not document:
                 raise tornado.web.HTTPError(404, "File not found")
+
             content_type = document['contenttype']
+            owner = document['user']
+            title = document.get('title', '')
+            age = int((datetime.datetime.utcnow() -
+                       document['date']).total_seconds())
+
+            metadata = {
+                'content_type': content_type,
+                'owner': owner,
+                'title': title,
+                'age': age,
+            }
             self.redis.setex(
-                content_type_key,
-                content_type,
-                60 * 60 * 24 * 100
+                metadata_key,
+                json.dumps(metadata),
+                60 * 60 * 24
             )
+
+        can_edit = self.get_current_user() == owner
 
         if content_type == 'image/jpeg':
             extension = 'jpg'
@@ -167,13 +191,109 @@ class ImageHandler(BaseHandler):
         assert extension in ('png', 'jpg'), extension
         self.render(
             'image.html',
-            page_title='/%s' % fileid,
+            page_title=title or '/%s' % fileid,
             image_filename=image_filename,
             ranges=ranges,
             default_zoom=default_zoom,
             extension=extension,
+            can_edit=can_edit,
+            age=age,
         )
 
+
+@route('/(\w{9})/metadata', 'image_metadata')
+class ImageMetadataHandler(BaseHandler):
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def get(self, fileid):
+        document = yield motor.Op(
+            self.db.images.find_one,
+            {'fileid': fileid}
+        )
+        data = {
+            'title': document.get('title'),
+            'description': document.get('description'),
+        }
+        self.write(data)
+        self.finish()
+
+
+@route('/(\w{9})/edit', 'image_edit')
+class ImageEditHandler(BaseHandler):
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def post(self, fileid):
+        current_user = self.get_current_user()
+        if not current_user:
+            raise tornado.web.HTTPError(403, "Not logged in")
+
+        title = self.get_argument('title', u'')
+        description = self.get_argument('description', u'')
+        document = yield motor.Op(
+            self.db.images.find_one,
+            {'fileid': fileid}
+        )
+        if document['user'] != current_user:
+            raise tornado.web.HTTPError(403, "Not yours to edit")
+
+        data = {
+            'title': title,
+            'description': description
+        }
+        yield motor.Op(
+            self.db.images.update,
+            {'_id': document['_id']},
+            {'$set': data}
+        )
+
+        metadata_key = 'metadata:%s' % fileid
+        self.redis.delete(metadata_key)
+
+        self.write(data)
+        self.finish()
+
+
+@route('/(\w{9})/delete', 'image_delete')
+class ImageDeleteHandler(BaseHandler):
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def post(self, fileid):
+        current_user = self.get_current_user()
+        if not current_user:
+            raise tornado.web.HTTPError(403, "Not logged in")
+        document = yield motor.Op(
+            self.db.images.find_one,
+            {'fileid': fileid}
+        )
+        if document['user'] != current_user:
+            raise tornado.web.HTTPError(403, "Not yours to edit")
+
+        yield motor.Op(
+            self.db.images.remove,
+            {'_id': document['_id']}
+        )
+        metadata_key = 'metadata:%s' % fileid
+        self.redis.delete(metadata_key)
+
+        q = Queue(connection=self.redis)
+        image_split = (
+            fileid[:1] +
+            '/' +
+            fileid[1:3] +
+            '/' +
+            fileid[3:]
+        )
+        q.enqueue(
+            delete_image,
+            image_split,
+            self.application.settings['static_path']
+        )
+
+        self.write("Deleted")
+        self.finish()
 
 @route('/upload', 'upload')
 class UploadHandler(BaseHandler):
