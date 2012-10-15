@@ -23,7 +23,7 @@ $(function() {
   map.add(po.compass()
       .pan("none"));
 
-  if (typeof map_loaded_callback) {
+  if (typeof map_loaded_callback !== 'undefined') {
     map_loaded_callback(map);
   }
 });

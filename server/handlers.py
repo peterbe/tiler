@@ -116,7 +116,7 @@ class HomeHandler(BaseHandler):
         while image:
             row.append(image)
             image = yield motor.Op(cursor.next_object)
-            if len(row) == 4:
+            if len(row) == 3:
                 data['recent_images_rows'].append(row)
                 row = []
         if row:
