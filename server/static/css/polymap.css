@@ -1,0 +1,33 @@
+/* Map compass tools */
+.compass .back {
+  fill: #000;
+  fill-opacity: .75;
+}
+ .compass .fore {
+  stroke: #c;
+  stroke-width: 1.5px;
+}
+ .compass rect.back.fore {
+  fill: #fff;
+  fill-opacity: .3;
+  stroke: #eee;
+  stroke-width: 1px;
+  shape-rendering: crispEdges;
+}
+ .compass .direction {
+  fill: none;
+}
+ .compass .chevron {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 5px;
+}
+ .compass .zoom .chevron {
+  stroke-width: 4px;
+}
+ .compass .active .chevron, .compass .chevron.active {
+  stroke: #fff;
+}
+ .compass.active .active .direction {
+  fill: #999;
+}

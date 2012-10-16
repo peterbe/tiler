@@ -1,6 +1,37 @@
-(function() {
+var Drawing = (function() {
+  var popup;
+  return {
+     setup: function(map) {
+       popup = L.popup();
+       map.on('click', function(event) {
+         popup
+           .setLatLng(event.latlng)
+             .setContent($('#wanna-edit').html())
+               .openOn(map);
+         $('#map').on('keypress', function(e) {
+           e.which == 0 && popup._close();
+         });
+       });
+
+     }
+  };
+})();
+
+
+
+var Editing = (function() {
 
   // Adding an 'Edit' link
+  $('#topnav ul')
+    .append($('<li>')
+            .append($('<a href="#">Edit</a>')
+                    .addClass('edit')
+                    .data('toggle', 'modal')
+                    .data('target', '#edit-modal')
+                    .click(_clicked_edit)
+                   )
+           );
+
   function _clicked_edit() {
     $('#edit-modal').modal({
        backdrop: false,
@@ -9,13 +40,6 @@
     $('#edit-modal .label-success').hide();
     return false;
   }
-  $('#topnav ul')
-    .append($('<li>')
-            .append($('<a href="#">Edit</a>')
-                    .addClass('edit')
-                    .data('toggle', 'modal')
-                    .data('target', '#edit-modal')
-                    .click(_clicked_edit)));
 
   // Close edit modal
   $('.modal a.closer').click(function() {
@@ -97,5 +121,11 @@
     }
 
   });
+
+  return {
+     setup: function(map) {
+       Drawing.setup(map);
+     }
+  };
 
 })();

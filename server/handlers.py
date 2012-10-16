@@ -192,6 +192,7 @@ class ImageHandler(BaseHandler):
             extension = self.DEFAULT_EXTENSION
         extension = self.get_argument('extension', extension)
         assert extension in ('png', 'jpg'), extension
+
         self.render(
             'image.html',
             page_title=title or '/%s' % fileid,
