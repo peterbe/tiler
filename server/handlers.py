@@ -145,12 +145,17 @@ class ImageHandler(BaseHandler):
         metadata_key = 'metadata:%s' % fileid
         metadata = self.redis.get(metadata_key)
 
+        if metadata and 'width' not in metadata:
+            # legacy
+            metadata = None
+
         if metadata is not None:
             metadata = json.loads(metadata)
             content_type = metadata['content_type']
             owner = metadata['owner']
             title = metadata['title']
             age = metadata['age']
+            width = metadata['width']
         else:
             logging.info("Meta data cache miss (%s)" % fileid)
             document = yield motor.Op(
@@ -163,6 +168,7 @@ class ImageHandler(BaseHandler):
             content_type = document['contenttype']
             owner = document['user']
             title = document.get('title', '')
+            width = document['width']
             # datetime.timedelta.total_seconds() is only in py2.6
             #age = int((datetime.datetime.utcnow() -
             #           document['date']).total_seconds())
@@ -174,12 +180,22 @@ class ImageHandler(BaseHandler):
                 'owner': owner,
                 'title': title,
                 'age': age,
+                'width': width,
             }
             self.redis.setex(
                 metadata_key,
                 json.dumps(metadata),
                 60 * 60 * 24
             )
+
+        ranges = []
+        _range = self.DEFAULT_RANGE_MIN
+        while True:
+            ranges.append(_range)
+            range_width = 256 * (2 ** _range)
+            if range_width > width or _range >= self.DEFAULT_RANGE_MAX:
+                break
+            _range += 1
 
         can_edit = self.get_current_user() == owner
 
@@ -470,14 +486,20 @@ class DownloadUploadHandler(UploadHandler):
                 {'_id': document['_id']},
                 {'$set': {'width': size[0], 'height': size[1]}}
             )
+            width = size[0]
 
             image_split = fileid[:1] + '/' + fileid[1:3] + '/' + fileid[3:]
             q = Queue(connection=self.redis)
 
-            ranges = range(
-                self.DEFAULT_RANGE_MIN,
-                self.DEFAULT_RANGE_MAX + 1
-            )
+            ranges = []
+            _range = self.DEFAULT_RANGE_MIN
+            while True:
+                ranges.append(_range)
+                range_width = 256 * (2 ** _range)
+                if range_width > width or _range >= self.DEFAULT_RANGE_MAX:
+                    break
+                _range += 1
+
             # since zoom level 3 is the default, make sure that's
             # prepared first
             ranges.remove(self.DEFAULT_ZOOM)
