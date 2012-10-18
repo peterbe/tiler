@@ -43,11 +43,11 @@ $(function() {
   var range_max = $body.data('range-max');
   var default_zoom = $body.data('default-zoom');
   var extension = $body.data('extension');
+  var prefix = $body.data('prefix');
 
   var map = L.map('map');
-  console.log(range_min, range_max);
-  console.log(range_max > range_min);
-  L.tileLayer("/tiles/" + image + "/256/{z}/{x},{y}." + extension, {
+
+  L.tileLayer(prefix + "/tiles/" + image + "/256/{z}/{x},{y}." + extension, {
     //attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="http://cloudmade.com">CloudMade</a>',
      minZoom: range_min,
     maxZoom: range_max,

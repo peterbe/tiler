@@ -236,3 +236,30 @@ def delete_image(image, static_path):
     for root in (thumbnails_root, tiles_root):
         dir_ = os.path.join(root, image)
         shutil.rmtree(dir_)
+
+
+def count_all_tiles(fileid, static_path):
+    return len(list(find_all_tiles(fileid, static_path)))
+
+
+def find_all_tiles(fileid, static_path):
+    image = fileid[:1] + '/' + fileid[1:3] + '/' + fileid[3:]
+    tiles_root = os.path.join(
+        static_path,
+        'tiles'
+    )
+
+    def walk(in_):
+        here = []
+        for f in os.listdir(in_):
+            p = os.path.join(in_, f)
+            if os.path.isdir(p):
+                here.extend(walk(p))
+            elif os.path.isfile(p):
+                here.append(p)
+        return here
+
+    dir_ = os.path.join(tiles_root, image)
+    if os.path.isdir(dir_):
+        for each in walk(dir_):
+            yield each

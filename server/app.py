@@ -112,7 +112,7 @@ def main():  # pragma: no cover
     ))
 
     job = q.enqueue(handlers.sample_queue_job)
-    for i in range(10):
+    for i in range(12):
         if job.result:
             break
         sleep(i / 10.0)

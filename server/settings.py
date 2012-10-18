@@ -11,7 +11,11 @@ PROJECT_TITLE = 'Tiler'
 ADMIN_EMAILS = (
 )
 
+DEFAULT_CDN_TILER_DOMAIN = 'd220r9wol91huc.cloudfront.net'
+TILES_BUCKET_ID = 'tiler-tiles'
 
 from local_settings import *
 
 assert BROWSERID_DOMAIN
+assert AWS_ACCESS_KEY
+assert AWS_SECRET_KEY

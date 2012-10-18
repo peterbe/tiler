@@ -19,8 +19,10 @@ from PIL import Image
 from tornado_utils.routes import route
 from rq import Queue
 import motor
-from utils import mkdir, make_tile, make_tiles, make_thumbnail, delete_image
+from utils import (
+mkdir, make_tile, make_tiles, make_thumbnail, delete_image, count_all_tiles)
 from optimizer import optimize_images, optimize_thumbnails
+from awsuploader import upload_tiles
 from resizer import make_resize
 import settings
 
@@ -156,6 +158,7 @@ class ImageHandler(BaseHandler):
             title = metadata['title']
             age = metadata['age']
             width = metadata['width']
+            cdn_domain = metadata.get('cdn_domain')
         else:
             logging.info("Meta data cache miss (%s)" % fileid)
             document = yield motor.Op(
@@ -169,6 +172,7 @@ class ImageHandler(BaseHandler):
             owner = document['user']
             title = document.get('title', '')
             width = document['width']
+            cdn_domain = document.get('cdn_domain', None)
             # datetime.timedelta.total_seconds() is only in py2.6
             #age = int((datetime.datetime.utcnow() -
             #           document['date']).total_seconds())
@@ -181,6 +185,7 @@ class ImageHandler(BaseHandler):
                 'title': title,
                 'age': age,
                 'width': width,
+                'cdn_domain': cdn_domain,
             }
             self.redis.setex(
                 metadata_key,
@@ -209,6 +214,28 @@ class ImageHandler(BaseHandler):
         extension = self.get_argument('extension', extension)
         assert extension in ('png', 'jpg'), extension
 
+        if age > 60 and not cdn_domain:
+            # it might be time to upload this to S3
+            lock_key = 'uploading:%s' % fileid
+            if not self.redis.get(lock_key):
+                # we're ready to upload it
+                _no_tiles =  count_all_tiles(
+                    fileid,
+                    self.application.settings['static_path']
+                )
+                self.redis.setex(lock_key, 1, 60 * 60 * 24)
+                q = Queue(connection=self.redis)
+                logging.info("About to upload %s tiles" % _no_tiles)
+                # bulk the queue workers with 100 each
+                for i in range(_no_tiles / 100 + 1):
+                    q.enqueue(
+                        upload_tiles,
+                        fileid,
+                        self.application.settings['static_path'],
+                        max_count=100
+                    )
+
+
         self.render(
             'image.html',
             page_title=title or '/%s' % fileid,
@@ -218,6 +245,7 @@ class ImageHandler(BaseHandler):
             extension=extension,
             can_edit=can_edit,
             age=age,
+            prefix=cdn_domain and '//' + cdn_domain or '',
         )
 
 
