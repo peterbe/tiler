@@ -76,6 +76,7 @@ class Application(tornado.web.Application):
         if not optimize_static_content:
             ui_modules_map['Static'] = tornado_static.PlainStatic
             ui_modules_map['StaticURL'] = tornado_static.PlainStaticURL
+
         routed_handlers = route.get_routes()
         app_settings = dict(
             template_path=os.path.join(os.path.dirname(__file__), "templates"),
@@ -88,7 +89,7 @@ class Application(tornado.web.Application):
             admin_emails=settings.ADMIN_EMAILS,
             ui_modules=ui_modules_map,
             embed_static_url_timestamp=not options.dont_embed_static_url,
-            optimize_static_content=not optimize_static_content,
+            optimize_static_content=optimize_static_content,
             cdn_prefix=cdn_prefix,
             CLOSURE_LOCATION=os.path.join(os.path.dirname(__file__),
                                           "static", "compiler.jar"),

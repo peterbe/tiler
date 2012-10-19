@@ -13,12 +13,7 @@
     {% module LinkTags('bootstrap/css/bootstrap.min.css', 'bootstrap/css/bootstrap-modal.min.css') %}
     {% end %}
 
-    {% if debug %}
-      {% module LinkTags('css/image.css', 'css/libs/leaflet.css') %}
-    {% else %}
-      {% module LinkTags('css/image.css') %}
-      <link rel="stylesheet" href="//cdn.leafletjs.com/leaflet-0.4.4/leaflet.css" />
-    {% end %}
+    {% module LinkTags('css/libs/leaflet.css', 'css/image.css') %}
     <!--[if lte IE 8]>
     <link rel="stylesheet" href="//cdn.leafletjs.com/leaflet-0.4.4/leaflet.ie.css" />
     <![endif]-->
