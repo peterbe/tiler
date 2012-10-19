@@ -27,7 +27,8 @@ def upload_original(fileid, extension, static_path, bucket_id):
         print "Uploading original", original
         s = os.stat(original)[stat.ST_SIZE]
         print "%.1fKb" % (s / 1024.)
-        k.set_contents_from_filename(original)
+        # reduced because I'm a cheapskate
+        k.set_contents_from_filename(original, reduced_redundancy=True)
         print "Original uploaded"
     else:
         print "Original can't be found", repr(original)
