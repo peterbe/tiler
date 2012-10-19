@@ -146,6 +146,7 @@ class ImageHandler(BaseHandler):
 
         metadata_key = 'metadata:%s' % fileid
         metadata = self.redis.get(metadata_key)
+        #metadata=None;self.redis.delete('uploading:%s' % fileid)
 
         if metadata and 'width' not in metadata:
             # legacy
@@ -178,6 +179,7 @@ class ImageHandler(BaseHandler):
             #           document['date']).total_seconds())
             _diff = datetime.datetime.utcnow() - document['date']
             age = _diff.days * 60 * 60 * 24 + _diff.seconds
+            #age+=4000
 
             metadata = {
                 'content_type': content_type,
@@ -224,7 +226,8 @@ class ImageHandler(BaseHandler):
                     self.application.settings['static_path']
                 )
                 self.redis.setex(lock_key, 1, 60 * 60 * 24)
-                q = Queue(connection=self.redis)
+                priority = self.application.settings['debug'] and 'default' or 'low'
+                q = Queue(priority, connection=self.redis)
                 logging.info("About to upload %s tiles" % _no_tiles)
                 # bulk the queue workers with 100 each
                 for i in range(_no_tiles / 100 + 1):
@@ -234,7 +237,6 @@ class ImageHandler(BaseHandler):
                         self.application.settings['static_path'],
                         max_count=100
                     )
-
 
         self.render(
             'image.html',
@@ -326,7 +328,8 @@ class ImageDeleteHandler(BaseHandler):
         metadata_key = 'metadata:%s' % fileid
         self.redis.delete(metadata_key)
 
-        q = Queue(connection=self.redis)
+        priority = self.application.settings['debug'] and 'default' or 'low'
+        q = Queue(priority, connection=self.redis)
         image_split = (
             fileid[:1] +
             '/' +
@@ -517,7 +520,15 @@ class DownloadUploadHandler(UploadHandler):
             width = size[0]
 
             image_split = fileid[:1] + '/' + fileid[1:3] + '/' + fileid[3:]
-            q = Queue(connection=self.redis)
+
+            if self.application.settings['debug']:
+                q_high = Queue('default', connection=self.redis)
+                q_default = Queue('default', connection=self.redis)
+                q_low = Queue('default', connection=self.redis)
+            else:
+                q_high = Queue('high', connection=self.redis)
+                q_default = Queue('default', connection=self.redis)
+                q_low = Queue('default', connection=self.redis)
 
             ranges = []
             _range = self.DEFAULT_RANGE_MIN
@@ -550,14 +561,14 @@ class DownloadUploadHandler(UploadHandler):
                 for zoom in ranges:
                     if ((first and zoom == self.DEFAULT_ZOOM) or
                         (second and zoom != self.DEFAULT_ZOOM)):
-                        q.enqueue(make_resize, destination, zoom)
+                        q_high.enqueue(make_resize, destination, zoom)
 
                 for zoom in ranges:
                     if ((first and zoom == self.DEFAULT_ZOOM) or
                         (second and zoom != self.DEFAULT_ZOOM)):
                         width = 256 * (2 ** zoom)
                         cols = rows = width / 256
-                        q.enqueue(
+                        q_default.enqueue(
                             make_tiles,
                             image_split,
                             256,
@@ -571,7 +582,7 @@ class DownloadUploadHandler(UploadHandler):
             # it's important to know how the thumbnail needs to be generated
             # and it's important to do the thumbnail soon since otherwise
             # it might severly delay the home page where the thumbnail is shown
-            q.enqueue(
+            q_high.enqueue(
                 make_thumbnail,
                 image_split,
                 100,
@@ -589,7 +600,7 @@ class DownloadUploadHandler(UploadHandler):
 
             # once that's queued up we can start optimizing
             for zoom in ranges:
-                q.enqueue(
+                q_low.enqueue(
                     optimize_images,
                     image_split,
                     zoom,
@@ -598,7 +609,7 @@ class DownloadUploadHandler(UploadHandler):
                 )
 
             # lastly, optimize the thumbnail too
-            q.enqueue(
+            q_low.enqueue(
                 optimize_thumbnails,
                 image_split,
                 'png',
