@@ -22,7 +22,7 @@ import motor
 from utils import (
 mkdir, make_tile, make_tiles, make_thumbnail, delete_image, count_all_tiles)
 from optimizer import optimize_images, optimize_thumbnails
-from awsuploader import upload_tiles
+from awsuploader import upload_tiles, upload_original
 from resizer import make_resize
 import settings
 
@@ -237,6 +237,15 @@ class ImageHandler(BaseHandler):
                         self.application.settings['static_path'],
                         max_count=100
                     )
+
+                # upload the original
+                q.enqueue(
+                    upload_original,
+                    fileid,
+                    extension,
+                    self.application.settings['static_path'],
+                    settings.ORIGINALS_BUCKET_ID
+                )
 
         self.render(
             'image.html',

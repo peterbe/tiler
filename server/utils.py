@@ -238,6 +238,16 @@ def delete_image(image, static_path):
         shutil.rmtree(dir_)
 
 
+def find_original(fileid, static_path, extension):
+    image = fileid[:1] + '/' + fileid[1:3] + '/' + fileid[3:]
+    root = os.path.join(
+        static_path,
+        'uploads'
+    )
+    path = os.path.join(root, image + '.' + extension)
+    return os.path.isfile(path) and path or None
+
+
 def count_all_tiles(fileid, static_path):
     return len(list(find_all_tiles(fileid, static_path)))
 

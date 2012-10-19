@@ -13,6 +13,7 @@ ADMIN_EMAILS = (
 
 DEFAULT_CDN_TILER_DOMAIN = 'd220r9wol91huc.cloudfront.net'
 TILES_BUCKET_ID = 'tiler-tiles'
+ORIGINALS_BUCKET_ID = 'tiler-originals'
 
 from local_settings import *
 
