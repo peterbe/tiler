@@ -68,10 +68,14 @@ class BaseHandler(tornado.web.RequestHandler):
         return super(BaseHandler, self).render(template, **options)
 
     def _get_gravatar_url(self, email):
-        base_url = '%s://%s' % (self.request.protocol, self.request.host)
-        default = base_url + self.static_url('images/anonymous_32.png')
+        d_url = self.static_url('images/anonymous_32.png')
+        if d_url.startswith('//'):
+            default = '%s:%s' % (self.request.protocol, d_url)
+        else:
+            default = '%s://%s%s' % (self.request.protocol,
+                                     self.request.host,
+                                     d_url)
         size = 32
-
         # construct the url
         gravatar_url = (
             "http://www.gravatar.com/avatar/" +
