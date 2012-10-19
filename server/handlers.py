@@ -690,6 +690,11 @@ class BrowserIDAuthLoginHandler(BaseHandler):
        r'.(?P<extension>jpg|png)',
        name='tile')
 class TileHandler(BaseHandler):
+    """Tiles are supposed to be created with a queue. This handler is a
+    fallback for when tiles weren't created by queue.
+    So if this is called and needed perhaps not all tiles were uploaded
+    to S3.
+    """
 
     def get(self, image, size, zoom, row, col, extension):
         if extension == 'png':
@@ -703,10 +708,25 @@ class TileHandler(BaseHandler):
         try:
             save_filepath = make_tile(image, size, zoom, row, col, extension,
                                       self.application.settings['static_path'])
+
         except IOError, msg:
             raise tornado.web.HTTPError(404, msg)
         try:
+            self.set_header(
+                'Cache-Control',
+                'max-age=%d, public' % (60 * 60 * 24)
+            )
             self.write(open(save_filepath, 'rb').read())
+            priority = self.application.settings['debug'] and 'default' or 'low'
+            fileid = image.replace('/', '')
+            q = Queue(priority, connection=self.redis)
+            q.enqueue(
+                upload_tiles,
+                fileid,
+                self.application.settings['static_path'],
+                max_count=10,
+                only_if_no_cdn_domain=True
+            )
         except IOError:
             self.set_header('Content-Type', 'image/png')
             broken_filepath = os.path.join(

@@ -35,7 +35,8 @@ def upload_original(fileid, extension, static_path, bucket_id):
 
 
 @gen.engine
-def upload_all_tiles(fileid, static_path, bucket_id, max_count=0):
+def upload_all_tiles(fileid, static_path, bucket_id, max_count=0,
+                     only_if_no_cdn_domain=False):
     log_file = os.path.join(static_path, 'upload.%s.txt' % fileid)
 
     conn = S3Connection(settings.AWS_ACCESS_KEY, settings.AWS_SECRET_KEY)
@@ -49,9 +50,14 @@ def upload_all_tiles(fileid, static_path, bucket_id, max_count=0):
         db.images.find_one,
         {'fileid': fileid}
     )
+
     if document.get('cdn_domain'):
-        warnings.warn("%s already has a cdn_domain (%s)" %
-                      (fileid, document['cdn_domain']))
+        if only_if_no_cdn_domain:
+            IOLoop.instance().stop()
+            return
+        else:
+            warnings.warn("%s already has a cdn_domain (%s)" %
+                          (fileid, document['cdn_domain']))
 
     try:
         count = 0
@@ -98,9 +104,15 @@ def upload_all_tiles(fileid, static_path, bucket_id, max_count=0):
 
 
 
-def upload_tiles(fileid, static_path, max_count=10):
-    upload_all_tiles(fileid, static_path, settings.TILES_BUCKET_ID,
-                     max_count=max_count)
+def upload_tiles(fileid, static_path, max_count=10,
+                 only_if_no_cdn_domain=False):
+    upload_all_tiles(
+        fileid,
+        static_path,
+        settings.TILES_BUCKET_ID,
+        max_count=max_count,
+        only_if_no_cdn_domain=only_if_no_cdn_domain
+    )
     IOLoop.instance().start()
 
 
