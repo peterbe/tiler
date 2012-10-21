@@ -223,7 +223,9 @@ class ImageHandler(BaseHandler):
         if age > 60 and not cdn_domain:
             # it might be time to upload this to S3
             lock_key = 'uploading:%s' % fileid
-            if not self.redis.get(lock_key):
+            if self.redis.get(lock_key):
+                print "AWS uploading is locked"
+            else:
                 # we're ready to upload it
                 _no_tiles =  count_all_tiles(
                     fileid,
