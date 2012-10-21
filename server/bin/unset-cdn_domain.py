@@ -6,7 +6,8 @@ from tornado import gen
 from tornado.ioloop import IOLoop
 import redis.client
 import sys
-sys.path.insert(0, os.path.normpath(os.path.join(os.path.dirname(__file__), '..')))
+ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, ROOT)
 import settings
 
 
@@ -36,6 +37,14 @@ def run(*fileids):
             lock_key = 'uploading:%s' % document['fileid']
             # locking it from aws upload for 1 hour
             _redis.setex(lock_key, 1, 60 * 60)
+
+            upload_log = os.path.join(
+                ROOT,
+                'static',
+                'upload.%s.txt' % document['fileid']
+            )
+            if os.path.isfile(upload_log):
+                os.remove(upload_log)
 
     finally:
         IOLoop.instance().stop()
