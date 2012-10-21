@@ -80,7 +80,13 @@ def upload_all_tiles(fileid, static_path, bucket_id, max_count=0,
                 # http://boto.cloudhackers.com/en/latest/ref/s3.html#boto.s3.\
                 #   key.Key.set_contents_from_filename
                 print "uploading", relative_path
-                k.set_contents_from_filename(each, reduced_redundancy=True)
+                k.set_contents_from_filename(
+                    each,
+                    # because we sometimes reset and thus might
+                    # upload it again
+                    replace=False,
+                    reduced_redundancy=True
+                )
                 k.make_public()
                 open(log_file, 'a').write(each + '\n')
                 count += 1

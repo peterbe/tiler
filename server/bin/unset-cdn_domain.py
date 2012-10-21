@@ -2,6 +2,7 @@
 import os
 import motor
 import shutil
+from pprint import pprint
 from tornado import gen
 from tornado.ioloop import IOLoop
 import redis.client
@@ -24,7 +25,7 @@ def run(*fileids):
     try:
         cursor = db.images.find({'fileid': {'$in': fileids}})
         for document in (yield motor.Op(cursor.to_list)):
-            print document
+            pprint(document)
             yield motor.Op(
                 db.images.update,
                 {'_id': document['_id']},
@@ -45,6 +46,8 @@ def run(*fileids):
             )
             if os.path.isfile(upload_log):
                 os.remove(upload_log)
+
+            print "\n"
 
     finally:
         IOLoop.instance().stop()
