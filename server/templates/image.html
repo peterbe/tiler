@@ -7,18 +7,24 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
     <meta name="viewport" content="width=device-width">
+    {% if og_image_url %}
+    <meta property="og:image" content="{{ og_image_url }}">
+    {% end %}
     <title>{{ page_title }} on {{ PROJECT_TITLE }}</title>
 
     {% if can_edit %}
-    {% module LinkTags('bootstrap/css/bootstrap.min.css', 'bootstrap/css/bootstrap-modal.min.css') %}
+    {% module LinkTags('bootstrap/css/bootstrap.min.css', 'bootstrap/css/bootstrap-modal.min.css', 'css/libs/leaflet.draw.css') %}
     {% end %}
 
     {% module LinkTags('css/libs/leaflet.css', 'css/image.css') %}
     <!--[if lte IE 8]>
     <link rel="stylesheet" href="//cdn.leafletjs.com/leaflet-0.4.4/leaflet.ie.css" />
     <![endif]-->
-    {% if og_image_url %}
-    <meta property="og:image" content="{{ og_image_url }}">
+
+    {% if can_edit %}
+    <!--[if lte IE 8]>
+    {% module LinkTags('css/libs/leaflet.draw.ie.css') %}
+    <![endif]-->
     {% end %}
   </head>
   <body
@@ -36,11 +42,14 @@
     <div id="topnav">
       <ul>
         <li><a href="/"><strong>{{ PROJECT_TITLE }}</strong></a></li>
-        <li><a href="{{ reverse_url('upload') }}" class="upload">Upload another</a></li>
+        {#<li><a href="{{ reverse_url('upload') }}" class="upload">Upload another</a></li>#}
         <li><a href="" class="permalink">permalink</a>
         <input name="permalink" class="permalink" style="display:none">
         <a href="#" class="close-permalink" style="display:none">&times;</a>
         </li>
+        {% if can_edit %}
+        <li><a href="#" class="edit" data-toggle="modal" data-target="#edit-modal">Edit</a></li>
+        {% end %}
       </ul>
     </div>
 
@@ -63,9 +72,10 @@
     <script>
     var modal_js_url = '{% module StaticURL('bootstrap/js/bootstrap-modal.min.js') %}';
     var editing_url = '{% module StaticURL('edit.js') %}';
+    var draw_url = '{% module StaticURL('libs/leaflet.draw.min.js') %}';
     function map_loaded_callback(map) {
       setTimeout(function() {
-        head.js(modal_js_url, editing_url, function() {
+        head.js(modal_js_url, editing_url, draw_url, function() {
           Editing.setup(map);
         });
       }, 1000);

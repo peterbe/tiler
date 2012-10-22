@@ -1,6 +1,27 @@
-<div id="wanna-edit" style="display:none">
-<p>Wanna draw something?<br>
-  <a href="#" class="draw-rectangle" title="Draw a rectangle"><img src="{{ static_url('images/draw-rectangle.png') }}" alt="Rectangle"></a>
-  <a href="#" class="draw-polygon" title="Draw a polygon"><img src="{{ static_url('images/draw-polygon.png') }}" alt="Polygon"></a>
-</p>
+<div id="annotate-add" style="display:none">
+<form>
+  <input type="hidden" name="type">
+  <input type="hidden" name="latlngs">
+  <input type="hidden" name="radius">
+  <input type="hidden" name="options">
+  <input name="title" size="30" class="annotation-title" maxlength="160" placeholder="Write something...">
+</form>
+</div>
+
+<div id="annotate-edit" style="display:none">
+<form class="form-edit">
+  <input type="hidden" name="id">
+  <input name="title" size="30" id="id-annotate-title-edit"><br>
+  <input type="submit" value="Save">
+  <input type="button" name="cancel" value="Cancel" class="button-cancel">
+</form>
+</div>
+
+<div id="annotate-delete" style="display:none">
+<form class="form-delete">
+  <input type="hidden" name="id">
+  <p>Sure?</p>
+  <input type="submit" value="Yes" class="button-primary">
+  <input type="button" name="cancel" value="Cancel" class="button-cancel">
+</form>
 </div>

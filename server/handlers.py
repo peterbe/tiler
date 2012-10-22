@@ -10,6 +10,7 @@ import time
 import datetime
 from pprint import pprint
 
+from bson.objectid import ObjectId
 import tornado.web
 import tornado.gen
 import tornado.httpclient
@@ -386,6 +387,240 @@ class ImageEditHandler(BaseHandler):
         self.write(data)
         self.finish()
 
+class AnnotationBaseHandler(BaseHandler):
+
+    def get_annotation_html(self, annotation, yours):
+        html = (
+            '<p><strong>%s</strong></p>' %
+            tornado.escape.linkify(annotation['title'])
+        )
+        if yours:
+             html += (
+                 '<p><a href="#" onclick="return Annotations.edit(\'%s\')"'
+                 '>edit</a> &ndash; '
+                 '<a href="#" onclick="return Annotations.delete_(\'%s\')"'
+                 '>delete</a></p>' %
+                 (annotation['_id'], annotation['_id'])
+             )
+        return html
+
+
+@route('/(\w{9})/annotations', 'image_annotations')
+class ImageAnnotationsHandler(AnnotationBaseHandler):
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def get(self, fileid):
+        document = yield motor.Op(
+            self.db.images.find_one,
+            {'fileid': fileid}
+        )
+        if not document:
+            raise tornado.web.HTTPError(404, "Not found")
+        cursor = self.db.annotations.find({'image': document['_id']})
+        annotation = yield motor.Op(cursor.next_object)
+        annotations = []
+        current_user = self.get_current_user()
+
+        while annotation:
+            yours = annotation['user'] == current_user
+            data = {
+                'id': str(annotation['_id']),
+                'title': annotation['title'],
+                'html': self.get_annotation_html(annotation, yours),
+                'type': annotation['type'],
+                'latlngs': annotation['latlngs'],
+                'yours': yours,
+            }
+            if annotation.get('radius'):
+                assert data['type'] == 'circle'
+                data['radius'] = annotation['radius']
+
+            annotations.append(data)
+            annotation = yield motor.Op(cursor.next_object)
+
+        data = {'annotations': annotations}
+        self.write(data)
+        self.finish()
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def post(self, fileid):
+        current_user = self.get_current_user()
+        if not current_user:
+            raise tornado.web.HTTPError(403, "Not logged in")
+        document = yield motor.Op(
+            self.db.images.find_one,
+            {'fileid': fileid}
+        )
+        if not document:
+            raise tornado.web.HTTPError(404, "Not found")
+        #if document['user'] != current_user:
+        #    raise tornado.web.HTTPError(403, "Not yours to annotate")
+
+        title = self.get_argument('title').strip()
+        type_ = self.get_argument('type')
+        assert type_ in ('polyline', 'rectangle', 'polygon', 'marker', 'circle'), type_
+        #lat = round(float(self.get_argument('lat')), 3)
+        #lng = round(float(self.get_argument('lng')), 3)
+        latlngs_json = self.get_argument('latlngs')
+        latlngs = tornado.escape.json_decode(latlngs_json)
+        pprint(latlngs)
+        # example rectangle:
+        # {u'_northEast': {u'lat': -47.1598400130443, u'lng': 81.5625},
+        #  u'_southWest': {u'lat': -58.26328705248601, u'lng': 24.43359375}}
+        if type_ == 'rectangle':
+            # because rectangles used bounds instead
+            latlngs = [latlngs['_southWest'], latlngs['_northEast']]
+        if type_ == 'circle' or type_ == 'marker':
+            latlngs = [latlngs]
+        latlngs = [[x['lat'], x['lng']] for x in latlngs]
+
+        options = {}
+        if self.get_argument('options', None):
+            options.update(
+                tornado.escape.json_decode(self.get_argument('options'))
+            )
+
+        annotation = {
+            'image': document['_id'],
+            'latlngs': latlngs,
+            'type': type_,
+            'title': title,
+            'user': current_user,
+            'date': datetime.datetime.utcnow(),
+            'approved': document['user'] == current_user,
+            'options': options,
+        }
+        if type_ == 'circle':
+            annotation['radius'] = float(self.get_argument('radius'))
+
+        _id = yield motor.Op(self.db.annotations.insert, annotation, safe=False)
+        annotation['_id'] = _id
+
+        data = {
+            'html': self.get_annotation_html(annotation, True),
+            'id': str(_id),
+            'title': title,
+        }
+        self.write(data)
+        self.finish()
+
+
+@route('/(\w{9})/annotations/move', 'image_annotations_move')
+class ImageAnnotationsMoveHandler(AnnotationBaseHandler):
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def post(self, fileid):
+        current_user = self.get_current_user()
+        if not current_user:
+            raise tornado.web.HTTPError(403, "Not logged in")
+        document = yield motor.Op(
+            self.db.images.find_one,
+            {'fileid': fileid}
+        )
+        if not document:
+            raise tornado.web.HTTPError(404, "Not found")
+
+        annotation = yield motor.Op(
+            self.db.annotations.find_one,
+            {'_id': ObjectId(self.get_argument('id'))}
+        )
+        if not annotation:
+            raise tornado.web.HTTPError(404, "Marker not found")
+        if annotation['user'] != current_user:
+            raise tornado.web.HTTPError(403, "Not yours to annotate")
+
+        lat = round(float(self.get_argument('lat')), 3)
+        lng = round(float(self.get_argument('lng')), 3)
+        data = {
+            'latlngs': [[lat, lng]]
+        }
+        yield motor.Op(
+            self.db.annotations.update,
+            {'_id': annotation['_id']},
+            {'$set': data}
+        )
+
+        self.write({'lat': lat, 'lng': lng})
+        self.finish()
+
+
+@route('/(\w{9})/annotations/edit', 'image_annotations_edit')
+class ImageAnnotationsEditHandler(AnnotationBaseHandler):
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def post(self, fileid):
+        current_user = self.get_current_user()
+        if not current_user:
+            raise tornado.web.HTTPError(403, "Not logged in")
+        document = yield motor.Op(
+            self.db.images.find_one,
+            {'fileid': fileid}
+        )
+        if not document:
+            raise tornado.web.HTTPError(404, "Not found")
+
+        annotation = yield motor.Op(
+            self.db.annotations.find_one,
+            {'_id': ObjectId(self.get_argument('id'))}
+        )
+        if not annotation:
+            raise tornado.web.HTTPError(404, "annotation not found")
+        if annotation['user'] != current_user:
+            raise tornado.web.HTTPError(403, "Not yours to annotate")
+
+        title = self.get_argument('title').strip()
+        data = {
+            'title': title
+        }
+        yield motor.Op(
+            self.db.annotations.update,
+            {'_id': annotation['_id']},
+            {'$set': data}
+        )
+        annotation['title'] = title
+
+        yours = annotation['user'] == current_user
+        html = self.get_annotation_html(annotation, yours)
+        self.write({'html': html, 'title': title})
+        self.finish()
+
+
+@route('/(\w{9})/annotations/delete', 'image_annotations_delete')
+class ImageAnnotationsDeleteHandler(AnnotationBaseHandler):
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def post(self, fileid):
+        current_user = self.get_current_user()
+        if not current_user:
+            raise tornado.web.HTTPError(403, "Not logged in")
+        document = yield motor.Op(
+            self.db.images.find_one,
+            {'fileid': fileid}
+        )
+        if not document:
+            raise tornado.web.HTTPError(404, "Not found")
+
+        marker = yield motor.Op(
+            self.db.annotations.find_one,
+            {'_id': ObjectId(self.get_argument('id'))}
+        )
+        if not marker:
+            raise tornado.web.HTTPError(404, "Marker not found")
+        if marker['user'] != current_user:
+            raise tornado.web.HTTPError(403, "Not yours")
+
+        yield motor.Op(
+            self.db.annotations.remove,
+            {'_id': marker['_id']}
+        )
+        self.write('OK')
+        self.finish()
+
 
 @route('/(\w{9})/delete', 'image_delete')
 class ImageDeleteHandler(BaseHandler):
@@ -516,9 +751,9 @@ class PreviewUploadHandler(UploadHandler):
         document = {
             'fileid': fileid,
             'source': url,
-            'date': datetime.datetime.utcnow()
+            'date': datetime.datetime.utcnow(),
+            'user': self.get_current_user()
         }
-        document['user'] = self.get_current_user()
         self.redis.setex(
             'contenttype:%s' % fileid,
             content_type,
@@ -742,6 +977,12 @@ class BrowserIDAuthLoginHandler(BaseHandler):
         assertion = self.get_argument('assertion')
         http_client = tornado.httpclient.AsyncHTTPClient()
         url = 'https://browserid.org/verify'
+        if self.request.host != settings.BROWSERID_DOMAIN:
+            logging.warning(
+                "%r != %r" %
+                (self.request.host, settings.BROWSERID_DOMAIN)
+            )
+
         data = {
             'assertion': assertion,
             'audience': settings.BROWSERID_DOMAIN,

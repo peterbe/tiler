@@ -1,4 +1,5 @@
 $(function() {
+
   $('a.permalink').on('mouseover', function() {
     $(this).attr('href', location.href);
   }).on('click', function() {

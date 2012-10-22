@@ -64,6 +64,11 @@ def upload_all_tiles(fileid, static_path, bucket_id, max_count=0,
         all_done = True
         all_tiles = list(find_all_tiles(fileid, static_path))
         random.shuffle(all_tiles)
+        #if len(all_tiles) > max_count:
+        #    total = max_count
+        #else:
+        #    total = len(all_tiles)
+        total = len(all_tiles)
         for each in all_tiles:
             # load which ones we've done every time to prevent
             # parallel workers uploading the same file more than once
@@ -79,7 +84,9 @@ def upload_all_tiles(fileid, static_path, bucket_id, max_count=0,
                 # docs:
                 # http://boto.cloudhackers.com/en/latest/ref/s3.html#boto.s3.\
                 #   key.Key.set_contents_from_filename
-                print "uploading", relative_path
+                print "uploading", relative_path,
+                count_down = set(line for x in open(log_file))
+                print "(%d of %d)" % (len(count_down), total)
                 k.set_contents_from_filename(
                     each,
                     # because we sometimes reset and thus might
