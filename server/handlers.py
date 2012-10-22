@@ -75,6 +75,10 @@ class BaseHandler(tornado.web.RequestHandler):
             default = '%s://%s%s' % (self.request.protocol,
                                      self.request.host,
                                      d_url)
+        # nasty hack so that gravatar can serve a default
+        # icon when on a local URL
+        default = default.replace('http://tiler/', 'http://hugepic.io/')
+
         size = 32
         # construct the url
         gravatar_url = (
@@ -114,9 +118,15 @@ class HomeHandler(BaseHandler):
     @tornado.web.asynchronous
     @tornado.gen.engine
     def get(self):
-        data = {}
+        data = {
+            'yours': False
+        }
         data['recent_images_rows'] = []
-        cursor = self.db.images.find().sort([('date', -1)]).limit(12)
+        search = {}
+        if self.get_argument('user', None):
+            search['user'] = self.get_argument('user')
+            data['yours'] = True
+        cursor = self.db.images.find(search).sort([('date', -1)]).limit(12)
         image = yield motor.Op(cursor.next_object)
         row = []
         while image:

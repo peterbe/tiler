@@ -58,9 +58,19 @@
 	    {% end %}
             </ul>
             <div class="navbar-form pull-right">
-                {% if user %}
-                <img class="gravatar" src="{{ gravatar_url }}" alt="Picture">
-                <a href="#" class="signout">Sign out</a>
+	        {% if user %}
+                <ul class="nav pull-right">
+                    <li class="dropdown"><a href="#" class="dropdown-toggle" data-toggle="dropdown"
+		     ><img class="gravatar" src="{{ gravatar_url }}" alt="Picture">
+		     {{ user }} <b class="caret"></b></a>
+                        <ul class="dropdown-menu">
+                            <li><a href="?user={{ user }}"><i class="icon-upload"></i> Your uploads</a></li>
+			    {#<li><a href="/preferences"><i class="icon-cog"></i> Preferences</a></li>#}
+                            <li class="divider"></li>
+                            <li><a href="#" class="signout"><i class="icon-off"></i> Sign out</a></li>
+                        </ul>
+                    </li>
+                </ul>
                 {% else %}
                 <a href="#" class="persona-button dark signin"
                   title="Sign in with Persona">
@@ -102,21 +112,19 @@
       <hr>
 
       <footer>
-        <p>&copy; Peter Bengtsson 2012</p>
+        <p>&copy; {{ PROJECT_TITLE }} 2012</p>
       </footer>
 
     </div> <!-- /container -->
 
+  {% if debug %}
+    {% module ScriptTags('libs/jquery-1.8.2.min.js') %}
+  {% else %}
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+  {% end %}
 
-    {% if debug %}
-      {% module ScriptTags('libs/jquery-1.8.2.min.js') %}
-    {% else %}
-      <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
-    {% end %}
-
-  {% module ScriptTags('bootstrap/js/bootstrap-collapse.min.js', 'authentication.js') %}
+  {% module ScriptTags('bootstrap/js/bootstrap.min.js', 'authentication.js') %}
   <script src="https://login.persona.org/include.js"></script>
-
   {% block extra_js %}
   {% end %}
   </body>

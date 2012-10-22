@@ -1,3 +1,7 @@
+* Use http://bootsnipp.com/snipps/user-preferences-in-nav-bar#
+  to make a User dropdown for Signout and "My uploads"
+  DONE
+
 * Make an embeddable widget
 
 * Upload to S3 and attach cloudfront URL domains to image documents
