@@ -132,6 +132,7 @@ class HomeHandler(BaseHandler):
         while image:
             row.append(image)
             image = yield motor.Op(cursor.next_object)
+
             if len(row) == 3:
                 data['recent_images_rows'].append(row)
                 row = []
@@ -230,7 +231,7 @@ class ImageHandler(BaseHandler):
         extension = self.get_argument('extension', extension)
         assert extension in ('png', 'jpg'), extension
 
-        if age > 60 and not cdn_domain:
+        if age > 60 * 60 and not cdn_domain:
             # it might be time to upload this to S3
             lock_key = 'uploading:%s' % fileid
             if self.redis.get(lock_key):
@@ -446,6 +447,9 @@ class PreviewUploadHandler(UploadHandler):
                 )
         try:
             expected_size = int(head_response.headers['Content-Length'])
+            if expected_size == 1:
+                # e.g. raw.github.com does this
+                raise KeyError
         except KeyError:
             # sometimes images don't have a Content-Length but still work
             logging.warning("No Content-Length (content-encoding:%r)" %
@@ -537,10 +541,13 @@ class DownloadUploadHandler(UploadHandler):
         destination_file.close()
         if response.code == 200:
             size = Image.open(destination).size
+            data = {'width': size[0], 'height': size[1]}
+            if not document.get('size'):
+                data['size'] = os.stat(destination)[stat.ST_SIZE]
             yield motor.Op(
                 self.db.images.update,
                 {'_id': document['_id']},
-                {'$set': {'width': size[0], 'height': size[1]}}
+                {'$set': data}
             )
             width = size[0]
 
