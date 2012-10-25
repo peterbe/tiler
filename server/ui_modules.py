@@ -6,12 +6,10 @@ from tornado_utils.timesince import smartertimesince
 class ThumbnailURL(tornado.web.UIModule):
 
     def render(self, fileid, width, extension='png'):
-        return '/thumbnails/%s/%s/%s/%s.%s' % (
-            fileid[:1],
-            fileid[1:3],
-            fileid[3:],
+        return self.handler.make_thumbnail_url(
+            fileid,
             width,
-            extension
+            extension=extension
         )
 
 

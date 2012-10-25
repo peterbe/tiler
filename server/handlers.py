@@ -110,6 +110,24 @@ class BaseHandler(tornado.web.RequestHandler):
         """
         return self.application.settings.get('cdn_prefix')
 
+    def make_thumbnail_url(self, fileid, width, extension='png',
+                           absolute_url=False):
+        url = '/thumbnails/%s/%s/%s/%s.%s' % (
+            fileid[:1],
+            fileid[1:3],
+            fileid[3:],
+            width,
+            extension
+        )
+        cdn_prefix = self.get_cdn_prefix()
+        if cdn_prefix:
+            url = cdn_prefix + url
+        elif absolute_url:
+            url = '%s://%s%s' % (self.request.protocol,
+                                 self.request.host,
+                                 url)
+        return url
+
 
 
 @route('/', name='home')
@@ -264,6 +282,17 @@ class ImageHandler(BaseHandler):
                     settings.ORIGINALS_BUCKET_ID
                 )
 
+        og_image_url = None
+        # if the image is old enough to have been given a chance to generate a
+        # thumbnail, then set that
+        if age > 60:
+            og_image_url = self.make_thumbnail_url(
+                fileid,
+                100,
+                extension=extension,
+                absolute_url=True,
+            )
+
         self.render(
             'image.html',
             page_title=title or '/%s' % fileid,
@@ -273,6 +302,7 @@ class ImageHandler(BaseHandler):
             extension=extension,
             can_edit=can_edit,
             age=age,
+            og_image_url=og_image_url,
             prefix=cdn_domain and '//' + cdn_domain or '',
         )
 

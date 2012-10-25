@@ -17,6 +17,9 @@
     <!--[if lte IE 8]>
     <link rel="stylesheet" href="//cdn.leafletjs.com/leaflet-0.4.4/leaflet.ie.css" />
     <![endif]-->
+    {% if og_image_url %}
+    <meta property="og:image" content="{{ og_image_url }}">
+    {% end %}
   </head>
   <body
   data-image="{{ image_filename }}"
