@@ -144,11 +144,22 @@ class HomeHandler(BaseHandler):
         if self.get_argument('user', None):
             search['user'] = self.get_argument('user')
             data['yours'] = True
-        cursor = self.db.images.find(search).sort([('date', -1)]).limit(12)
+        total_count = yield motor.Op(self.db.images.find(search).count)
+        page_size = 12
+        page = int(self.get_argument('page', 1))
+        skip = page_size * (page - 1)
+        cursor = (
+            self.db.images.find(search)
+            .sort([('date', -1)])
+            .limit(page_size)
+            .skip(skip)
+        )
         image = yield motor.Op(cursor.next_object)
         row = []
+        count = 0
         while image:
             row.append(image)
+            count += 1
             image = yield motor.Op(cursor.next_object)
 
             if len(row) == 3:
@@ -156,6 +167,21 @@ class HomeHandler(BaseHandler):
                 row = []
         if row:
             data['recent_images_rows'].append(row)
+
+        pagination = None
+        if total_count > count:
+            # pagination in order!
+            pagination = {
+                'current_page': page,
+                'range': range(1, total_count / page_size + 2)
+            }
+            if (page - 1) * page_size > 0:
+                pagination['prev'] = page - 1
+            if page * page_size < total_count:
+                pagination['next'] = page + 1
+
+        data['pagination'] = pagination
+        data['show_hero_unit'] = self.get_argument('page', None) is None
         self.render('index.html', **data)
 
 

@@ -12,11 +12,13 @@
       {% if yours %}
       <h2>Your uploads</h2>
       {% else %}
-      <div class="hero-unit">
-        <h1>{{ PROJECT_TITLE }}</h1>
-        <p>When you want to upload HUGE pictures that you can zoom in on like a map.</p>
-        <p><a href="{{ reverse_url('upload') }}" class="btn btn-primary btn-large">Get started &raquo;</a></p>
-      </div>
+        {% if show_hero_unit %}
+        <div class="hero-unit">
+          <h1>{{ PROJECT_TITLE }}</h1>
+          <p>When you want to upload HUGE pictures that you can zoom in on like a map.</p>
+          <p><a href="{{ reverse_url('upload') }}" class="btn btn-primary btn-large">Get started &raquo;</a></p>
+        </div>
+        {% end %}
       {% end %}
 
       {% for i, images in enumerate(recent_images_rows) %}
@@ -39,6 +41,18 @@
           </p>
         </div>
 	{% end %}
+      </div>
+      {% end %}
+
+      {% if pagination %}
+      <div class="pagination pagination-centered">
+        <ul>
+          <li{% if not pagination.get('prev') %} class="disabled"{% end %}><a href="?page={{ pagination.get('prev', pagination['current_page']) }}">Prev</a></li>
+          {% for page in pagination['range'] %}
+          <li{% if page == pagination['current_page'] %} class="active"{% end %}><a href="?page={{ page }}">{{ page }}</a>
+          {% end %}
+          <li{% if not pagination.get('next') %} class="disabled"{% end %}><a href="?page={{ pagination.get('next', pagination['current_page']) }}">Next</a></li>
+        </ul>
       </div>
       {% end %}
 
