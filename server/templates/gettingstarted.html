@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block page_title %}Getting started with {{ PROJECT_TITLE }}{% end %}
+
+{% block extra_head %}
+<style>
+.already-signed-in h2,
+.already-signed-in p { text-decoration: line-through; }
+</style>
+{% end %}
+
+{% block main %}
+<div class="row">
+  <div class="span9">
+        <div class="page-header">
+          <h1>Getting started</h1>
+        </div>
+
+        <section {% if user %}class="already-signed-in"{% end %}>
+          <div class="page-header">
+            <h2>1. Sign in</h2>
+          </div>
+          <p class="lead">Upload is only for people who are willing to sign in.
+          See upper right-hand corner.</p>
+        </section>
+
+        <section>
+          <div class="page-header">
+            <h2>2. Click 'Upload'</h2>
+          </div>
+          <p class="lead">On this page you choose which way to upload.</p>
+          <ul>
+            <li><h4>Upload by URL</h4>
+              <p>The simplest option if all you have is a direct URL to an image.</p>
+            </li>
+            <li><h4>Upload with Filepicker.io&trade;</h4>
+              <p><a href="http://filepicker.io">Filepicker.io</a> is an external service
+              that makes it really convenient for you to upload using other means such as
+              taking pictures directly from your Dropbox, Box or Google Drive account.
+              </p>
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <div class="page-header">
+            <h2>3. Look at your picture</h2>
+          </div>
+          <p class="lead">Right after you upload is finished, you can use it.</p>
+          <p>
+          The first time you load it it's going to pop up a window asking you to
+          enter a title and description for your picture.</p>
+        </section>
+
+        <section>
+          <div class="page-header">
+            <h2>4. Annotate your picture</h2>
+          </div>
+          <p class="lead">On the left hand side you have tools to draw annotations on the picture.</p>
+          <p>The annotations you can draw are Line, Polygon, Rectangle, Circle and Marker.
+          All of them plus the title you enter will be available for all to see.</p>
+        </section>
+
+        <section>
+          <div class="page-header">
+            <h2>5. Share your picture</h2>
+          </div>
+          <p class="lead">Click the "Permalink" link in the upper right-hand corner to get
+          a direct link to the exactly what you see.</p>
+          <p>You probably have Facebook and Twitter and I'm not going to show you have to
+          use them :)</p>
+        </section>
+
+  </div>
+</div>
+{% end %}

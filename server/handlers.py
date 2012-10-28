@@ -1205,6 +1205,13 @@ class AboutHandler(BaseHandler):
         self.render('about.html')
 
 
+@route(r'/gettingstarted', 'gettingstarted')
+class GettingStartedHandler(BaseHandler):
+
+    def get(self):
+        self.render('gettingstarted.html')
+
+
 # this handler gets automatically appended last to all handlers inside app.py
 class PageNotFoundHandler(BaseHandler):
 
