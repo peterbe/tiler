@@ -276,7 +276,7 @@ class ImageHandler(BaseHandler):
         extension = self.get_argument('extension', extension)
         assert extension in ('png', 'jpg'), extension
 
-        if age > 60 * 60 and not cdn_domain:
+        if age > (60 * 60) and not cdn_domain:
             # it might be time to upload this to S3
             lock_key = 'uploading:%s' % fileid
             if self.redis.get(lock_key):
@@ -841,6 +841,8 @@ class DownloadUploadHandler(UploadHandler):
                 {'$set': data}
             )
             width = size[0]
+            area = size[0] * size[1]
+            r = 1.0 * size[0] / size[1]
 
             image_split = fileid[:1] + '/' + fileid[1:3] + '/' + fileid[3:]
 
@@ -858,7 +860,11 @@ class DownloadUploadHandler(UploadHandler):
             while True:
                 ranges.append(_range)
                 range_width = 256 * (2 ** _range)
-                if range_width > width or _range >= self.DEFAULT_RANGE_MAX:
+                range_height = range_width / r
+                range_area = range_width * range_height
+                if _range >= self.DEFAULT_RANGE_MAX:
+                    break
+                if range_area > area:
                     break
                 _range += 1
 
@@ -1039,6 +1045,7 @@ class TileHandler(BaseHandler):
             self.write(open(save_filepath, 'rb').read())
             priority = self.application.settings['debug'] and 'default' or 'low'
             fileid = image.replace('/', '')
+
             q = Queue(priority, connection=self.redis)
             q.enqueue(
                 upload_tiles,

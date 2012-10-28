@@ -35,6 +35,7 @@ var Download = (function() {
   var _loaded_urls = [];
   var preload_interval = 1;
   var _has_completed = false;
+  var _preload_count = 0;
 
   function show_error(message) {
     $('#preprogress').hide();
@@ -58,7 +59,10 @@ var Download = (function() {
         // it has begun
         preload_interval *= 2;
       }
-      start_preloading();
+      _preload_count++;
+      if (_preload_count < 20) {
+        start_preloading();
+      }
     });
   }
 
@@ -81,14 +85,6 @@ var Download = (function() {
       preload(_fileid);
     }, preload_interval * 1000);
   }
-
-  /*
-  $( "div.log" ).ajaxError(function(e, jqxhr, settings, exception) {
-      if ( settings.url == "ajax/missing.html" ) {
-            $(this).text( "Triggered ajaxError handler." );
-      }
-  });
-   * */
 
   function _really_post_success(response) {
     clearInterval(_progress_interval);
