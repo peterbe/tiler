@@ -82,6 +82,7 @@ class Application(tornado.web.Application):
             template_path=os.path.join(os.path.dirname(__file__), "templates"),
             static_path=os.path.join(os.path.dirname(__file__), "static"),
             cookie_secret=settings.COOKIE_SECRET,
+            xsrf_cookies=True,
             debug=options.debug,
             email_backend=options.debug and \
                  'tornado_utils.send_mail.backends.console.EmailBackend' \

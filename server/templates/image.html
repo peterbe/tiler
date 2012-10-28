@@ -52,6 +52,7 @@
         {% end %}
       </ul>
     </div>
+    {% module xsrf_form_html() %}
 
     {% if can_edit %}
     {% include "_edit_modal.html" %}

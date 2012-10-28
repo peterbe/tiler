@@ -36,12 +36,14 @@ var Download = (function() {
   var preload_interval = 1;
   var _has_completed = false;
   var _preload_count = 0;
+  var _xsrf = $('input[name="_xsrf"]').val();
 
   function show_error(message) {
     $('#preprogress').hide();
     $('#progress').hide();
     $('#errormessage').text(message);
     $('#error').fadeIn(300);
+    $('button, input').removeAttr('disabled', 'disabled');
   }
 
   function preload() {
@@ -142,7 +144,7 @@ var Download = (function() {
       $.ajax({
          type: 'POST',
         url: REALLY_URL,
-        data: {fileid: _fileid},
+        data: {fileid: _fileid, _xsrf: _xsrf},
         success: _really_post_success,
         error: _really_post_error
       });
@@ -167,7 +169,7 @@ var Download = (function() {
     $.ajax({
        type: 'POST',
       url: PREVIEW_URL,
-      data: {url: url},
+      data: {url: url, _xsrf: _xsrf},
       success: _preview_post_success,
       error: _preview_post_error
     });

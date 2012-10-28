@@ -158,8 +158,20 @@ class HomeHandler(BaseHandler):
         image = yield motor.Op(cursor.next_object)
         row = []
         count = 0
+        _now = datetime.datetime.utcnow()
         while image:
+            hit_key = 'hits:%s' % image['fileid']
+            image['hits'] = self.redis.get(hit_key)
+            hit_month_key = (
+                'hits:%s:%s:%s' %
+                (_now.year, _now.month, image['fileid'])
+            )
+            image['hits_this_month'] = (
+                self.redis.get(hit_month_key)
+            )
+
             row.append(image)
+
             count += 1
             image = yield motor.Op(cursor.next_object)
 
@@ -332,6 +344,23 @@ class ImageHandler(BaseHandler):
             og_image_url=og_image_url,
             prefix=cdn_domain and '//' + cdn_domain or '',
         )
+
+
+@route('/(\w{9})/hit', 'image_hitcounter')
+class ImageHitCounterHandler(BaseHandler):
+
+    def post(self, fileid):
+
+        # increment a hit counter
+        _now = datetime.datetime.utcnow()
+        hit_key = 'hits:%s' % fileid
+        hit_month_key = (
+            'hits:%s:%s:%s' %
+            (_now.year, _now.month, fileid)
+        )
+        self.redis.incr(hit_key)
+        self.redis.incr(hit_month_key)
+        self.write('OK')
 
 
 @route('/(\w{9})/metadata', 'image_metadata')
@@ -832,6 +861,13 @@ class DownloadUploadHandler(UploadHandler):
         destination_file.close()
         if response.code == 200:
             size = Image.open(destination).size
+            if size[0] < 256 * (2 ** self.DEFAULT_RANGE_MIN):
+                self.write({
+                    'error': 'Picture too small (%sx%s)' % size
+                })
+                self.finish()
+                return
+
             data = {'width': size[0], 'height': size[1]}
             if not document.get('size'):
                 data['size'] = os.stat(destination)[stat.ST_SIZE]
@@ -867,6 +903,10 @@ class DownloadUploadHandler(UploadHandler):
                 if range_area > area:
                     break
                 _range += 1
+
+
+            print "RANGES"
+            print ranges
 
             # since zoom level 3 is the default, make sure that's
             # prepared first

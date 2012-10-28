@@ -181,7 +181,8 @@ var Editing = (function() {
   $('.modal a.btn-primary').click(function() {
     var data = {
        title: _title_input.val(),
-      description: $('#edit-modal textarea[name="description"]').val()
+      description: $('#edit-modal textarea[name="description"]').val(),
+      _xsrf: $('#edit-modal input[name="_xsrf"]').val()
     };
     $.post(location.pathname + '/edit', data, function(response) {
       $('#edit-modal .label-success').show(100);

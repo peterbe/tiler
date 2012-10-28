@@ -5,6 +5,7 @@
   </div>
   <div class="modal-body">
     <form>
+      {% module xsrf_form_html() %}
       <label>Title:</label>
       <input type="text" name="title" placeholder="" class="input-xlarge" maxlength="100">
       <label>Description:</label>

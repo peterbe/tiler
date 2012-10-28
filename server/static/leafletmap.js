@@ -1,6 +1,6 @@
 var Hashing = (function() {
 
-  var DEFAULT_LAT = 0, DEFAULT_LNG = 0;
+  var DEFAULT_LAT = 70.0, DEFAULT_LNG = 0;
 
   function setHash(zoom, lat, lng) {
     var precision = Math.max(0, Math.ceil(Math.log(zoom) / Math.LN2));
@@ -165,20 +165,12 @@ $(function() {
     .attributionControl
     .setPrefix('Powered by <a href="http://hugepic.io/">HUGEpic.io</a>');
 
-/*  var bounds=[[-16.63619187839765, -135.703125], [15.284185114076445, -135.703125],
-              [15.284185114076445, 88.24218749999999], [-16.63619187839765, -88.24218749999999], {lat:-16.63619187839765, lng:-135.703125}];
- */
-  //var bounds = [[-19.973348786110602, -134.6484375], [13.923403897723347, -82.265625]];
-  //L.rectangle(bounds, {color: "#ff7800", weight: 3}).addTo(map);
-
-/*  L.Icon.L.Icon.extend({
-			options: {
-				shadowUrl: '../docs/images/leaf-shadow.png',
-			}
-		});*/
-
   Hashing.setup(map, default_zoom);
   Annotations.init(map);
+
+  setTimeout(function() {
+    $.post(location.pathname + '/hit', {'_xsrf': $('input[name="_xsrf"]').val()});
+  }, 1000);
 
   if (typeof map_loaded_callback !== 'undefined') {
     map_loaded_callback(map);

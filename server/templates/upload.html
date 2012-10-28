@@ -14,6 +14,7 @@ form button { font-size: 150%; }
       <div class="span5">
         <h2>Upload by URL</h2>
         <form class="form-search">
+          {% module xsrf_form_html() %}
           <label>URL:</label>
           <input name="url" placeholder="http://.../something.jpg">
           <button type="submit" class="btn">Go!</button>

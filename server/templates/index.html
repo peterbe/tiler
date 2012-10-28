@@ -34,9 +34,17 @@
           ><img class="thumbnail img-polaroid" src="{% module ThumbnailURL(image['fileid'], 100, 'png') %}" alt="Screenshot"></a>
           <p>
             {% module ShowFileSize(image['size']) %} &ndash;
-            {% module Thousands(image['width']) %} &times; {% module Thousands(image['height']) %}
-            <br>
+            {% if image.get('width') and image.get('height') %}
+            {% module Thousands(image['width']) %} &times; {% module Thousands(image['height']) %}<br>
+            {% end %}
             uploaded {% module TimeSince(image['date']) %} ago<br>
+            {% if image['hits'] %}
+            {% module Thousands(image['hits']) %} hits
+              {% if image['hits_this_month'] and image['hits_this_month'] != image['hits'] %}
+              ({% module Thousands(image['hits_this_month']) %} this month)
+              {% end %}
+            <br>
+            {% end %}
             <a class="url" href="{{ reverse_url('image', image['fileid']) }}">Check it out &raquo;</a>
           </p>
         </div>

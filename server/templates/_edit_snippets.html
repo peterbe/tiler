@@ -1,5 +1,6 @@
 <div id="annotate-add" style="display:none">
 <form>
+  {% module xsrf_form_html() %}
   <input type="hidden" name="type">
   <input type="hidden" name="latlngs">
   <input type="hidden" name="radius">
@@ -10,6 +11,7 @@
 
 <div id="annotate-edit" style="display:none">
 <form class="form-edit">
+  {% module xsrf_form_html() %}
   <input type="hidden" name="id">
   <input name="title" size="30" id="id-annotate-title-edit"><br>
   <input type="submit" value="Save">
@@ -19,6 +21,7 @@
 
 <div id="annotate-delete" style="display:none">
 <form class="form-delete">
+  {% module xsrf_form_html() %}
   <input type="hidden" name="id">
   <p>Sure?</p>
   <input type="submit" value="Yes" class="button-primary">
