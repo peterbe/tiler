@@ -86,7 +86,7 @@ def upload_all_tiles(fileid, static_path, bucket_id, max_count=0,
                 #   key.Key.set_contents_from_filename
                 print "uploading", relative_path,
                 try:
-                    count_done = set(line for x in open(log_file))
+                    count_done = set(x.strip() for x in open(log_file))
                 except IOError:
                     count_done = []
                 print "(%d of %d)" % (len(count_done), total)
