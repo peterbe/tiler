@@ -316,7 +316,7 @@ class ImageHandler(BaseHandler):
             og_image_url = self.make_thumbnail_url(
                 fileid,
                 100,
-                extension=extension,
+                extension='png',
                 absolute_url=True,
             )
 
