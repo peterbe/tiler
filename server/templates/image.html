@@ -65,7 +65,12 @@
       <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
     {% end %}
 
+    <script>
+    var MARKER_SHADOW_URL = '{{ static_url('libs/images/marker-shadow.png') }}',
+        MARKER_ICON_URL = '{{ static_url('libs/images/marker-icon.png') }}';
+    </script>
     {% module ScriptTags('libs/leaflet.min.js', 'leafletmap.js', 'stuff.js') %}
+{#    {% module ScriptTags('libs/leaflet.js', 'leafletmap.js', 'stuff.js') %}#}
 
     {% if can_edit %}
     {% module ScriptTags('libs/head.load.min.js') %}

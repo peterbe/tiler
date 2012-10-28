@@ -244,11 +244,11 @@ var key = '_leaflet_events';
 L.Mixin = {};
 
 L.Mixin.Events = {
-	
+
 	addEventListener: function (types, fn, context) { // (String, Function[, Object]) or (Object[, Object])
 		var events = this[key] = this[key] || {},
 			type, i, len;
-		
+
 		// Types can be a map of types/handlers
 		if (typeof types === 'object') {
 			for (type in types) {
@@ -256,12 +256,12 @@ L.Mixin.Events = {
 					this.addEventListener(type, types[type], fn);
 				}
 			}
-			
+
 			return this;
 		}
-		
+
 		types = L.Util.splitWords(types);
-		
+
 		for (i = 0, len = types.length; i < len; i++) {
 			events[types[i]] = events[types[i]] || [];
 			events[types[i]].push({
@@ -269,7 +269,7 @@ L.Mixin.Events = {
 				context: context || this
 			});
 		}
-		
+
 		return this;
 	},
 
@@ -280,24 +280,24 @@ L.Mixin.Events = {
 	removeEventListener: function (types, fn, context) { // (String[, Function, Object]) or (Object[, Object])
 		var events = this[key],
 			type, i, len, listeners, j;
-		
+
 		if (typeof types === 'object') {
 			for (type in types) {
 				if (types.hasOwnProperty(type)) {
 					this.removeEventListener(type, types[type], fn);
 				}
 			}
-			
+
 			return this;
 		}
-		
+
 		types = L.Util.splitWords(types);
 
 		for (i = 0, len = types.length; i < len; i++) {
 
 			if (this.hasEventListeners(types[i])) {
 				listeners = events[types[i]];
-				
+
 				for (j = listeners.length - 1; j >= 0; j--) {
 					if (
 						(!fn || listeners[j].action === fn) &&
@@ -308,7 +308,7 @@ L.Mixin.Events = {
 				}
 			}
 		}
-		
+
 		return this;
 	},
 
@@ -895,7 +895,7 @@ L.latLng = function (a, b, c) { // (LatLng) or ([Number, Number]) or (Number, Nu
 	}
 	return new L.LatLng(a, b, c);
 };
- 
+
 
 /*
  * L.LatLngBounds represents a rectangular area on the map in geographical coordinates.
@@ -5210,7 +5210,7 @@ L.DomEvent = {
 			return this.addDoubleTapListener(obj, handler, id);
 
 		} else if ('addEventListener' in obj) {
-			
+
 			if (type === 'mousewheel') {
 				obj.addEventListener('DOMMouseScroll', handler, false);
 				obj.addEventListener(type, handler, false);
@@ -5284,7 +5284,7 @@ L.DomEvent = {
 	disableClickPropagation: function (el) {
 
 		var stop = L.DomEvent.stopPropagation;
-		
+
 		return L.DomEvent
 			.addListener(el, L.Draggable.START, stop)
 			.addListener(el, 'click', stop)
@@ -6008,7 +6008,7 @@ L.Map.BoxZoom = L.Handler.extend({
 			.on(document, 'mousemove', this._onMouseMove, this)
 			.on(document, 'mouseup', this._onMouseUp, this)
 			.preventDefault(e);
-			
+
 		this._map.fire("boxzoomstart");
 	},
 
@@ -6048,7 +6048,7 @@ L.Map.BoxZoom = L.Handler.extend({
 				map.layerPointToLatLng(layerPoint));
 
 		map.fitBounds(bounds);
-		
+
 		map.fire("boxzoomend", {
 			boxZoomBounds: bounds
 		});

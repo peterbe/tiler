@@ -8,6 +8,10 @@ var Drawing = (function() {
     drawn_items.addLayer(annotation);
     annotation.bindPopup($('#annotate-add').html()).openPopup();
     var title_input = $('input.annotation-title:visible');
+    if (!title_input.size()) {
+      console.log($('input.annotation-title'));
+      throw "No title input";
+    }
     var form = title_input.parents('form');
     title_input.focus().select();
     $('input[name="type"]', form).val(type);
@@ -104,6 +108,7 @@ var Drawing = (function() {
          drawn(e.circ, 'circle');
        });
        map.on('draw:marker-created', function (e) {
+         e.marker.options.icon = MARKER_ICON;
          drawn(e.marker, 'marker');
        });
        map.addLayer(drawn_items);

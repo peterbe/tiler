@@ -58,6 +58,7 @@ var Annotations = (function() {
            if (each.type == 'circle') {
              annotation = L[each.type](each.latlngs[0], each.radius, options);
            } else if (each.type == 'marker') {
+             options.icon = MARKER_ICON;
              annotation = L[each.type](each.latlngs[0], options);
            } else {
              annotation = L[each.type](each.latlngs, options);
@@ -91,9 +92,13 @@ var Annotations = (function() {
 var Title = (function() {
   var current_title;
   var timer;
+  var locked = false;
 
   return {
      change_temporarily: function (msg, msec, animate) {
+       if (locked) {
+         clearTimeout(timer);
+       }
        current_title = document.title;
        msec = typeof(msec) !== 'undefined' ? msec : 2500;
        if (msec < 100) msec *= 1000;
@@ -101,26 +106,42 @@ var Title = (function() {
          clearTimeout(timer);
        }
        document.title = msg;
+       locked = true;
        timer = setTimeout(function() {
          if (animate) {
            var interval = setInterval(function() {
              document.title = document.title.substring(1, document.title.length);
              if (!document.title.length) {
                clearInterval(interval);
+               locked = false;
                document.title = current_title;
              }
            }, 40);
          } else {
            document.title = current_title;
+           locked = false;
          }
        }, msec);
      }
   }
 })();
 
+var MARKER_ICON = L.icon({
+  iconUrl: MARKER_ICON_URL,
+  shadowUrl: MARKER_SHADOW_URL,
+  iconSize: new L.Point(25, 41),
+  iconAnchor: new L.Point(13, 41),
+  popupAnchor: new L.Point(1, -34),
+  shadowSize: new L.Point(41, 41)
+});
+
+// when we can't rely on using MARKER_ICON (such as in draw)
+// we have to set a default
+L.Icon.Default.imagePath = '/static/libs/images';
 
 
 $(function() {
+
   var $body = $('body');
   var image = $body.data('image');
   var range_min = $body.data('range-min');
@@ -128,6 +149,7 @@ $(function() {
   var default_zoom = $body.data('default-zoom');
   var extension = $body.data('extension');
   var prefix = $body.data('prefix');
+
 
   var tiles_url = prefix + '/tiles/' + image + '/256/{z}/{x},{y}.' + extension;
   var map_layer = new L.TileLayer(tiles_url, {
@@ -148,6 +170,12 @@ $(function() {
  */
   //var bounds = [[-19.973348786110602, -134.6484375], [13.923403897723347, -82.265625]];
   //L.rectangle(bounds, {color: "#ff7800", weight: 3}).addTo(map);
+
+/*  L.Icon.L.Icon.extend({
+			options: {
+				shadowUrl: '../docs/images/leaf-shadow.png',
+			}
+		});*/
 
   Hashing.setup(map, default_zoom);
   Annotations.init(map);
