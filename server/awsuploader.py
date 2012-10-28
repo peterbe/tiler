@@ -85,8 +85,11 @@ def upload_all_tiles(fileid, static_path, bucket_id, max_count=0,
                 # http://boto.cloudhackers.com/en/latest/ref/s3.html#boto.s3.\
                 #   key.Key.set_contents_from_filename
                 print "uploading", relative_path,
-                count_down = set(line for x in open(log_file))
-                print "(%d of %d)" % (len(count_down), total)
+                try:
+                    count_done = set(line for x in open(log_file))
+                except IOError:
+                    count_done = 0
+                print "(%d of %d)" % (len(count_done), total)
                 k.set_contents_from_filename(
                     each,
                     # because we sometimes reset and thus might
