@@ -776,7 +776,15 @@ class PreviewUploadHandler(UploadHandler):
                             head_response.headers.get('Content-Encoding', ''))
             expected_size = 0
 
+
         fileid = uuid.uuid4().hex[:9]
+        _count = yield motor.Op(self.db.images.find({'fileid': fileid}).count)
+        while _count:
+            fileid = uuid.uuid4().hex[:9]
+            _count = yield motor.Op(
+                self.db.images.find({'fileid': fileid}).count
+            )
+
         document = {
             'fileid': fileid,
             'source': url,
@@ -797,9 +805,7 @@ class PreviewUploadHandler(UploadHandler):
         if expected_size:
             document['size'] = expected_size
         yield motor.Op(self.db.images.insert, document, safe=False)
-        #print repr(result), type(result)
-        #print "Result", repr(result)
-        #print dir(result)
+
         self.write({
             'fileid': fileid,
             'content_type': content_type,
@@ -865,6 +871,13 @@ class DownloadUploadHandler(UploadHandler):
                 self.write({
                     'error': 'Picture too small (%sx%s)' % size
                 })
+
+                # reverse the upload by deleting the record
+                yield motor.Op(
+                    self.db.images.remove,
+                    {'_id': document['_id']}
+                )
+                os.remove(destination)
                 self.finish()
                 return
 
@@ -903,10 +916,6 @@ class DownloadUploadHandler(UploadHandler):
                 if range_area > area:
                     break
                 _range += 1
-
-
-            print "RANGES"
-            print ranges
 
             # since zoom level 3 is the default, make sure that's
             # prepared first
