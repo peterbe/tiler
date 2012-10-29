@@ -288,7 +288,7 @@ class ImageHandler(BaseHandler):
         extension = self.get_argument('extension', extension)
         assert extension in ('png', 'jpg'), extension
 
-        if age > (60 * 60) and not cdn_domain:
+        if age > 60 and not cdn_domain:
             # it might be time to upload this to S3
             lock_key = 'uploading:%s' % fileid
             if self.redis.get(lock_key):
@@ -1095,14 +1095,16 @@ class TileHandler(BaseHandler):
             priority = self.application.settings['debug'] and 'default' or 'low'
             fileid = image.replace('/', '')
 
-            q = Queue(priority, connection=self.redis)
-            q.enqueue(
-                upload_tiles,
-                fileid,
-                self.application.settings['static_path'],
-                max_count=10,
-                only_if_no_cdn_domain=True
-            )
+            lock_key = 'uploading:%s' % fileid
+            if not self.redis.get(lock_key):
+                q = Queue(priority, connection=self.redis)
+                q.enqueue(
+                    upload_tiles,
+                    fileid,
+                    self.application.settings['static_path'],
+                    max_count=10,
+                    only_if_no_cdn_domain=True
+                )
         except IOError:
             self.set_header('Content-Type', 'image/png')
             broken_filepath = os.path.join(
