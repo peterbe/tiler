@@ -223,15 +223,19 @@ class ImageHandler(BaseHandler):
         if metadata and 'width' not in metadata:
             # legacy
             metadata = None
+        if metadata and 'date_timestamp' not in metadata:
+            # legacy
+            metadata = None
 
         if metadata is not None:
             metadata = json.loads(metadata)
             content_type = metadata['content_type']
             owner = metadata['owner']
             title = metadata['title']
-            age = metadata['age']
+            date_timestamp = metadata['date_timestamp']
             width = metadata['width']
             cdn_domain = metadata.get('cdn_domain')
+
         else:
             logging.info("Meta data cache miss (%s)" % fileid)
             document = yield motor.Op(
@@ -246,18 +250,13 @@ class ImageHandler(BaseHandler):
             title = document.get('title', '')
             width = document['width']
             cdn_domain = document.get('cdn_domain', None)
-            # datetime.timedelta.total_seconds() is only in py2.6
-            #age = int((datetime.datetime.utcnow() -
-            #           document['date']).total_seconds())
-            _diff = datetime.datetime.utcnow() - document['date']
-            age = _diff.days * 60 * 60 * 24 + _diff.seconds
-            #age+=4000
+            date_timestamp = time.mktime(document['date'].timetuple())
 
             metadata = {
                 'content_type': content_type,
                 'owner': owner,
                 'title': title,
-                'age': age,
+                'date_timestamp': date_timestamp,
                 'width': width,
                 'cdn_domain': cdn_domain,
             }
@@ -266,6 +265,9 @@ class ImageHandler(BaseHandler):
                 json.dumps(metadata),
                 60 * 60 * 24
             )
+
+        now = time.mktime(datetime.datetime.utcnow().timetuple())
+        age = now - date_timestamp
 
         ranges = []
         _range = self.DEFAULT_RANGE_MIN
