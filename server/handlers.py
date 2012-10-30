@@ -328,7 +328,7 @@ class ImageHandler(BaseHandler):
             og_image_url = self.make_thumbnail_url(
                 fileid,
                 100,
-                extension='png',
+                extension=extension,
                 absolute_url=True,
             )
 
@@ -490,11 +490,9 @@ class ImageAnnotationsHandler(AnnotationBaseHandler):
         title = self.get_argument('title').strip()
         type_ = self.get_argument('type')
         assert type_ in ('polyline', 'rectangle', 'polygon', 'marker', 'circle'), type_
-        #lat = round(float(self.get_argument('lat')), 3)
-        #lng = round(float(self.get_argument('lng')), 3)
         latlngs_json = self.get_argument('latlngs')
         latlngs = tornado.escape.json_decode(latlngs_json)
-        pprint(latlngs)
+        #pprint(latlngs)
         # example rectangle:
         # {u'_northEast': {u'lat': -47.1598400130443, u'lng': 81.5625},
         #  u'_southWest': {u'lat': -58.26328705248601, u'lng': 24.43359375}}
@@ -744,6 +742,7 @@ class PreviewUploadHandler(UploadHandler):
             self.write({'error': head_response.body})
             self.finish()
             return
+
         content_type = head_response.headers['Content-Type']
         if content_type not in ('image/jpeg', 'image/png'):
             if ((url.lower().endswith('.jpg') or url.lower().endswith('.png'))
@@ -964,19 +963,9 @@ class DownloadUploadHandler(UploadHandler):
                 make_thumbnail,
                 image_split,
                 100,
-                'png',
+                extension,
                 self.application.settings['static_path']
             )
-            if extension != 'png':
-                q_high.enqueue(
-                    make_thumbnail,
-                    image_split,
-                    100,
-                    extension,
-                    self.application.settings['static_path']
-                )
-                print "Remember! Compare the different thumbnails"
-                print "static/thumbnails/" + image_split
 
             # pause for 2 seconds just to be sure enough images have been
             # created before we start optimizing

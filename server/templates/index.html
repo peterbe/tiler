@@ -31,7 +31,7 @@
           <h3>Example {{ (i * 3) + (j + 1) }}</h3>
           {% end %}
 	  <a href="{{ reverse_url('image', image['fileid']) }}"
-          ><img class="thumbnail img-polaroid" src="{% module ThumbnailURL(image['fileid'], 100, 'png') %}" alt="Screenshot"></a>
+          ><img class="thumbnail img-polaroid" src="{% module ThumbnailURL(image['fileid'], 100, image.get('contenttype', 'png')) %}" alt="Screenshot"></a>
           <p>
             {% module ShowFileSize(image['size']) %} &ndash;
             {% if image.get('width') and image.get('height') %}

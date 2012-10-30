@@ -5,7 +5,11 @@ from tornado_utils.timesince import smartertimesince
 
 class ThumbnailURL(tornado.web.UIModule):
 
-    def render(self, fileid, width, extension='png'):
+    def render(self, fileid, width, extension):
+        if extension == 'image/jpeg':
+            extension = 'jpg'
+        elif extension == 'image/png':
+            extension = 'png'
         return self.handler.make_thumbnail_url(
             fileid,
             width,
