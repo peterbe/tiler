@@ -1,4 +1,6 @@
 $(function() {
+  var _xsrf = $('input[name="_xsrf"]').val();
+
   $('a.signin').click(function(e) {
     e.preventDefault();
     navigator.id.getVerifiedEmail(function(assertion) {
@@ -6,7 +8,7 @@ $(function() {
         $.ajax({
            type: 'POST',
           url: '/auth/browserid/',
-          data: {assertion: assertion},
+          data: {assertion: assertion, _xsrf: _xsrf},
           success: function(res, status, xhr) { window.location.reload(); },
           error: function(res, status, xhr) { alert("login failure" + res); }
         });
@@ -24,6 +26,7 @@ $(function() {
     $.ajax({
        type: 'POST',
       url: '/auth/signout/',
+      data: {_xsrf: _xsrf},
       success: function(res, status, xhr) { window.location.reload(); },
       error: function(res, status, xhr) { alert("logout failure" + res); }
     });
