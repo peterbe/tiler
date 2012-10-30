@@ -1041,7 +1041,7 @@ class BrowserIDAuthLoginHandler(BaseHandler):
     def post(self):
         assertion = self.get_argument('assertion')
         http_client = tornado.httpclient.AsyncHTTPClient()
-        url = 'https://browserid.org/verify'
+        url = 'https://verifier.login.persona.org/verify'
         if self.request.host != settings.BROWSERID_DOMAIN:
             logging.warning(
                 "%r != %r" %
