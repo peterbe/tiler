@@ -8,6 +8,7 @@ from boto.s3.connection import Location, S3Connection
 from boto.s3.key import Key
 from tornado import gen
 from tornado.ioloop import IOLoop
+import redis.client
 import settings
 from utils import find_all_tiles, find_original
 
@@ -113,6 +114,20 @@ def upload_all_tiles(fileid, static_path, bucket_id, max_count=0,
                 {'_id': document['_id']},
                 {'$set': data}
             )
+            # invalidate some redis keys
+            _redis = redis.client.Redis(
+                settings.REDIS_HOST,
+                settings.REDIS_PORT
+            )
+            lock_key = 'uploading:%s' % fileid
+            _redis.delete(lock_key)
+            metadata_key = 'metadata:%s' % fileid
+            # make it expire in a minute
+            data = _redis.get(metadata_key)
+            if data:
+                # this gives all workers a chance to finish
+                # any leftover jobs such as optimizations
+                _redis.setex(metadata_key, data, 60)
 
     finally:
         print "# done", count

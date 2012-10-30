@@ -967,6 +967,16 @@ class DownloadUploadHandler(UploadHandler):
                 'png',
                 self.application.settings['static_path']
             )
+            if extension != 'png':
+                q_high.enqueue(
+                    make_thumbnail,
+                    image_split,
+                    100,
+                    extension,
+                    self.application.settings['static_path']
+                )
+                print "Remember! Compare the different thumbnails"
+                print "static/thumbnails/" + image_split
 
             # pause for 2 seconds just to be sure enough images have been
             # created before we start optimizing
