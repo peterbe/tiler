@@ -211,7 +211,8 @@ var Editing = (function() {
   });
 
   $('#delete-modal a.confirm').click(function() {
-    $.post(location.pathname + '/delete', function() {
+    var data = {_xsrf: $('#edit-modal input[name="_xsrf"]').val()};
+    $.post(location.pathname + '/delete', data, function() {
       location.href = '/';
     });
   });

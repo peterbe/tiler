@@ -1,3 +1,4 @@
+import re
 import os
 import stat
 import urllib
@@ -26,6 +27,15 @@ from optimizer import optimize_images, optimize_thumbnails
 from awsuploader import upload_tiles, upload_original
 from resizer import make_resize
 import settings
+
+
+def commafy(s):
+    r = []
+    for i, c in enumerate(reversed(str(s))):
+        if i and (not (i % 3)):
+            r.insert(0, ',')
+        r.insert(0, c)
+    return ''.join(r)
 
 
 def sample_queue_job():
@@ -129,25 +139,23 @@ class BaseHandler(tornado.web.RequestHandler):
                                  url)
         return url
 
+    def clear_thumbnail_grid_cache(self):
+        cache_keys_key = 'thumbnail_grid:keys'
+        for key in self.redis.lrange(cache_keys_key, 0, -1):
+            self.redis.delete(key)
+        self.redis.delete(cache_keys_key)
 
+    def remember_thumbnail_grid_cache_key(self, key):
+        cache_keys_key = 'thumbnail_grid:keys'
+        self.redis.lpush(cache_keys_key, key)
 
-@route('/', name='home')
-class HomeHandler(BaseHandler):
+class ThumbnailGridRendererMixin(object):
 
-    @tornado.web.asynchronous
     @tornado.gen.engine
-    def get(self):
+    def render_thumbnail_grid(self, search, page, page_size, callback):
         data = {
-            'yours': False
+            'recent_images_rows': [],
         }
-        data['recent_images_rows'] = []
-        search = {}
-        if self.get_argument('user', None):
-            search['user'] = self.get_argument('user')
-            data['yours'] = True
-        total_count = yield motor.Op(self.db.images.find(search).count)
-        page_size = 12
-        page = int(self.get_argument('page', 1))
         skip = page_size * (page - 1)
         cursor = (
             self.db.images.find(search)
@@ -158,17 +166,17 @@ class HomeHandler(BaseHandler):
         image = yield motor.Op(cursor.next_object)
         row = []
         count = 0
-        _now = datetime.datetime.utcnow()
+        #_now = datetime.datetime.utcnow()
         while image:
-            hit_key = 'hits:%s' % image['fileid']
-            image['hits'] = self.redis.get(hit_key)
-            hit_month_key = (
-                'hits:%s:%s:%s' %
-                (_now.year, _now.month, image['fileid'])
-            )
-            image['hits_this_month'] = (
-                self.redis.get(hit_month_key)
-            )
+            #hit_key = 'hits:%s' % image['fileid']
+            #image['hits'] = self.redis.get(hit_key)
+            #hit_month_key = (
+            #    'hits:%s:%s:%s' %
+            #    (_now.year, _now.month, image['fileid'])
+            #)
+            #image['hits_this_month'] = (
+            #    self.redis.get(hit_month_key)
+            #)
 
             row.append(image)
 
@@ -180,6 +188,50 @@ class HomeHandler(BaseHandler):
                 row = []
         if row:
             data['recent_images_rows'].append(row)
+
+        callback((self.render_string('_thumbnail_grid.html', **data), count))
+
+
+hits_html_regex = re.compile('<!--hits:(\w+)-->')
+
+@route('/', name='home')
+class HomeHandler(BaseHandler, ThumbnailGridRendererMixin):
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def get(self):
+        data = {
+            'yours': False
+        }
+
+        search = {}
+        if self.get_argument('user', None):
+            search['user'] = self.get_argument('user')
+            data['yours'] = True
+        page = int(self.get_argument('page', 1))
+
+        total_count = yield motor.Op(self.db.images.find(search).count)
+
+        page_size = 12
+        _search_values = search.values()
+        cache_key = 'thumbnail_grid:%s:%s:%s' % (page, page_size, _search_values)
+        result = self.redis.get(cache_key)
+        if result:
+            thumbnail_grid, count = tornado.escape.json_decode(result)
+        else:
+            logging.warning('Thumbnail grid cache miss (%r)' % cache_key)
+            thumbnail_grid, count = yield tornado.gen.Task(
+                self.render_thumbnail_grid,
+                search, page, page_size
+            )
+            self.redis.setex(
+                cache_key,
+                tornado.escape.json_encode([thumbnail_grid, count]),
+                60 * 60
+            )
+            self.remember_thumbnail_grid_cache_key(cache_key)
+        thumbnail_grid = self.insert_hits_html(thumbnail_grid)
+        data['thumbnail_grid'] = thumbnail_grid
 
         pagination = None
         if total_count > count:
@@ -196,6 +248,35 @@ class HomeHandler(BaseHandler):
         data['pagination'] = pagination
         data['show_hero_unit'] = self.get_argument('page', None) is None
         self.render('index.html', **data)
+
+    def insert_hits_html(self, html):
+        _now = datetime.datetime.utcnow()
+        def replacer(match):
+            fileid = match.groups()[0]
+            hit_key = 'hits:%s' % fileid
+            hit_month_key = (
+                'hits:%s:%s:%s' %
+                (_now.year, _now.month, fileid)
+            )
+            hits = self.redis.get(hit_key)
+            hits_this_month = (
+                self.redis.get(hit_month_key)
+            )
+            if hits:
+                if hits == 1:
+                    h = '1 hit'
+                else:
+                    h = '%s hits' % commafy(hits)
+                if hits_this_month and hits_this_month != hits:
+                    if hits_this_month == 1:
+                        h += ' (1 hit this month)'
+                    else:
+                        h += ' (%s hits this month)' % commafy(hits_this_month)
+                return h + '<br>'
+            return match.group()
+        html = hits_html_regex.sub(replacer, html)
+        return html
+
 
 
 @route('/(\w{9})', 'image')
@@ -713,6 +794,12 @@ class ImageDeleteHandler(BaseHandler):
             self.application.settings['static_path']
         )
 
+        try:
+            self.clear_thumbnail_grid_cache()
+        except:
+            logging.error('Unable to clear_thumbnail_grid_cache()',
+                          exc_info=True)
+
         self.write("Deleted")
         self.finish()
 
@@ -1018,6 +1105,13 @@ class DownloadUploadHandler(UploadHandler):
                 'png',
                 self.application.settings['static_path']
             )
+
+            # clear the home page cache
+            try:
+                self.clear_thumbnail_grid_cache()
+            except:
+                logging.error('Unable to clear_thumbnail_grid_cache()',
+                              exc_info=True)
 
             self.write({
                 'url': self.reverse_url('image', fileid),
