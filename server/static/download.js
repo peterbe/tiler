@@ -39,8 +39,7 @@ var Download = (function() {
   var _xsrf = $('input[name="_xsrf"]').val();
 
   function show_error(message) {
-    $('#preprogress').hide();
-    $('#progress').hide();
+    $('#preprogress, #progress, #terms').hide();
     $('#errormessage').text(message);
     $('#error').fadeIn(300);
     $('button, input').removeAttr('disabled', 'disabled');
@@ -165,6 +164,7 @@ var Download = (function() {
   }
 
   function start(url) {
+    $('#terms').fadeOut(100);
     $('#preprogress').show(100);
     $.ajax({
        type: 'POST',
@@ -201,4 +201,7 @@ function files_picked(files) {
 
 $(function() {
   Download.setup();
+  $('#terms').on('click', function() {
+    $(this).toggleClass('faded');
+  });
 });

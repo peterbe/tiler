@@ -5,6 +5,15 @@
 {% block extra_head %}
 <style type="text/css">
 form button { font-size: 150%; }
+#terms { margin-top: 50px; }
+.faded { opacity: 0.6; }
+#terms h3 { font-size: 20px; }
+#terms h4 { font-size: 14px; }
+#terms p {
+  font-size: 11px;
+  line-height: 16px;
+  margin: 0 0 6px;
+}
 </style>
 {% end %}
 
@@ -53,6 +62,7 @@ form button { font-size: 150%; }
   </div>
 
   <div class="row">
+    {% include "terms.upload.html" %}
     {% include "preprogress.upload.html" %}
     {% include "progress.upload.html" %}
     {% include "precomplete.upload.html" %}
