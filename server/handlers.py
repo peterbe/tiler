@@ -1201,11 +1201,19 @@ class PreloadURLsHandler(BaseHandler):
 
         self.write({'urls': urls})
 
+
 @route(r'/about', 'about')
 class AboutHandler(BaseHandler):
 
     def get(self):
         self.render('about.html')
+
+
+@route(r'/privacy', 'privacy')
+class PrivacyHandler(BaseHandler):
+
+    def get(self):
+        self.render('privacy.html')
 
 
 @route(r'/gettingstarted', 'gettingstarted')
