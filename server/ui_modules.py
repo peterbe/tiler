@@ -1,3 +1,4 @@
+import datetime
 import tornado.web
 import tornado.escape
 from tornado_utils.timesince import smartertimesince
@@ -34,6 +35,8 @@ class ShowFileSize(tornado.web.UIModule):
 class TimeSince(tornado.web.UIModule):
     def render(self, date, date2=None):
         assert date
+        if date2 is None:
+            date2 = datetime.datetime.utcnow()
         return smartertimesince(date, date2)
 
 
