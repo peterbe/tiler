@@ -365,6 +365,30 @@ class ImageHitCounterHandler(BaseHandler):
         self.write('OK')
 
 
+@route('/(\w{9})/weight', 'image_weight')
+class ImageWeightCounterHandler(BaseHandler):
+
+    def check_xsrf_cookie(self):
+        pass
+
+    def post(self, fileid):
+        urls = self.get_argument('urls')
+        extension = self.get_argument('extension')
+        root = os.path.join(
+            self.settings['static_path'],
+            'tiles',
+            fileid[:1],
+            fileid[1:3],
+            fileid[3:],
+            '256',
+        )
+        bytes = 0
+        for each in urls.split('|'):
+            path = os.path.join(root, each + extension)
+            bytes += os.stat(path)[stat.ST_SIZE]
+        self.write({'bytes': bytes})
+
+
 @route('/(\w{9})/metadata', 'image_metadata')
 class ImageMetadataHandler(BaseHandler):
 

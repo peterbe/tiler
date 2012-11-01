@@ -126,6 +126,64 @@ var Title = (function() {
   }
 })();
 
+
+var TrackKeeper = (function() {
+  var urls = [];
+  var new_urls = [];
+  var total_bytes = 0;
+  var locked = false;
+  var extension = null;
+
+  function path(url) {
+    return url.match(/\d\/\d+,\d+/g)[0];
+  }
+
+  function humanize_size(filesize) {
+    var kilo = 1024;
+    var units = ['bytes', 'Kb', 'Mb', 'Gb', 'Tb', 'Pb'];
+    if (filesize < kilo) { return filesize.toFixed() + ' ' + units[0]; }
+    var thresholds = [1];
+    for (var i = 1; i < units.length; i++) {
+      thresholds[i] = thresholds[i-1] * kilo;
+      if (filesize < thresholds[i]) {
+        return (filesize / thresholds[i-1]).toFixed(1) + ' ' + units[i-1];
+      }
+    }
+  }
+
+  function update_new_urls() {
+    var url = location.pathname + '/weight';
+    var data = {urls: new_urls.join('|'), extension: extension};
+    $.post(url, data, function(response) {
+      total_bytes += response.bytes;
+      $('#track-stats').show();
+      $('#track-stats span').text(humanize_size(total_bytes));
+    });
+    new_urls = [];
+  }
+
+  return {
+     notice: function(url) {
+       var p = path(url);
+       if (!extension) {
+         extension = url.match(/\.[a-z]+$/g)[0];
+       }
+       if ($.inArray(p, urls) === -1) {
+         urls.push(p);
+         new_urls.push(p);
+         if (!locked) {
+           locked = true;
+           setTimeout(function() {
+             update_new_urls();
+             locked = false;
+           }, 2 * 1000);
+         }
+       }
+     }
+  };
+})();
+
+
 var MARKER_ICON = L.icon({
   iconUrl: MARKER_ICON_URL,
   shadowUrl: MARKER_SHADOW_URL,
@@ -157,6 +215,10 @@ $(function() {
       maxZoom: range_max,
       zoomControl: range_max > range_min
     });
+  map_layer.on('tileload', function(e) {
+    TrackKeeper.notice(e.url);
+  });
+
   var map = new L.Map('map', {
      layers: [map_layer],
   });
