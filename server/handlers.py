@@ -371,7 +371,7 @@ class ImageHandler(BaseHandler):
         extension = self.get_argument('extension', extension)
         assert extension in ('png', 'jpg'), extension
 
-        if age > 60 and not cdn_domain:
+        if age > 60 * 60 and not cdn_domain:
             # it might be time to upload this to S3
             lock_key = 'uploading:%s' % fileid
             if self.redis.get(lock_key):
@@ -1206,10 +1206,20 @@ class TileHandler(BaseHandler):
         except IOError, msg:
             raise tornado.web.HTTPError(404, msg)
         try:
+            _cache_seconds = 60 * 60 * 24
             self.set_header(
                 'Cache-Control',
-                'max-age=%d, public' % (60 * 60 * 24)
+                'max-age=%d, public' % _cache_seconds
             )
+            if _cache_seconds > 3600:
+                _expires = (
+                    datetime.datetime.utcnow() +
+                    datetime.timedelta(seconds=_cache_seconds)
+                )
+                self.set_header(
+                    'Expires',
+                    _expires.strftime('%a, %d %b %Y %H:%M:%S GMT')
+                )
             self.write(open(save_filepath, 'rb').read())
             priority = self.application.settings['debug'] and 'default' or 'low'
             fileid = image.replace('/', '')
@@ -1226,6 +1236,10 @@ class TileHandler(BaseHandler):
                 )
         except IOError:
             self.set_header('Content-Type', 'image/png')
+            self.set_header(
+                'Cache-Control',
+                'max-age=0'
+            )
             broken_filepath = os.path.join(
                 self.application.settings['static_path'],
                 'images',
@@ -1284,11 +1298,25 @@ class ThumbnailHandler(BaseHandler):
                 'images',
                 'file_broken.png'
             )
-        else:
             self.set_header(
                 'Cache-Control',
-                'max-age=%d, public' % (60 * 60 * 24)
+                'max-age=0'
             )
+        else:
+            _cache_seconds = 60 * 60 * 24
+            self.set_header(
+                'Cache-Control',
+                'max-age=%d, public' % _cache_seconds
+            )
+            if _cache_seconds > 3600:
+                _expires = (
+                    datetime.datetime.utcnow() +
+                    datetime.timedelta(seconds=_cache_seconds)
+                )
+                self.set_header(
+                    'Expires',
+                    _expires.strftime('%a, %d %b %Y %H:%M:%S GMT')
+                )
         self.write(open(thumbnail_filepath, 'rb').read())
         self.finish()
 
