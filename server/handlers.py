@@ -851,6 +851,16 @@ class PreviewUploadHandler(UploadHandler):
             url,
             method='HEAD'
         )
+
+        if head_response.code == 599:
+            message = (
+                'Fetching the image timed out. '
+                'Perhaps try again a little later.'
+            )
+            self.write({'error': message})
+            self.finish()
+            return
+
         if not head_response.code == 200:
             self.write({'error': head_response.body})
             self.finish()

@@ -125,6 +125,9 @@ var Download = (function() {
       if (response.error) {
         return show_error(response.error);
       }
+      if (!response.fileid) {
+          return show_error("Failed to download the image for unknown reason :(");
+      }
 
       $('button, input').attr('disabled', 'disabled');
       $('#preprogress').hide();
