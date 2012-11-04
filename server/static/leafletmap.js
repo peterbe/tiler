@@ -2,10 +2,22 @@ var Hashing = (function() {
 
   var DEFAULT_LAT = 70.0, DEFAULT_LNG = 0;
 
-  function setHash(zoom, lat, lng) {
+  function getHashByMap(map) {
+    var zoom = map.getZoom(),
+      center = map.getCenter(),
+      lat = center.lat,
+      lng = center.lng;
+    return getHash(zoom, lat, lng);
+  }
+
+  function getHash(zoom, lat, lng) {
     var precision = Math.max(0, Math.ceil(Math.log(zoom) / Math.LN2));
-    location.hash = '#' + zoom.toFixed(2) + '/' +
-                    lat.toFixed(precision) + '/' + lng.toFixed(precision);
+    return '#' + zoom.toFixed(2) + '/' +
+           lat.toFixed(precision) + '/' + lng.toFixed(precision);
+  }
+
+  function setHash(zoom, lat, lng) {
+    location.hash = getHash(zoom, lat, lng);
   }
 
   return {
@@ -21,14 +33,37 @@ var Hashing = (function() {
        } else {
          // Default!
          map.setView([DEFAULT_LAT, DEFAULT_LNG], default_zoom);
-         setHash(default_zoom, DEFAULT_LAT, DEFAULT_LNG);
+         //setHash(default_zoom, DEFAULT_LAT, DEFAULT_LNG);
        }
 
        // set up the event
+       /*
        map.on('move', function(event) {
          var c = event.target.getCenter();
          setHash(event.target.getZoom(), c.lat, c.lng);
        });
+       */
+
+       $('a.permalink').on('mouseover', function() {
+         $(this).attr('href', getHashByMap(map));
+       }).on('click', function() {
+         $(this).hide();
+         $('a.upload').hide();
+         $('input[name="permalink"]')
+           .val(location.href + getHashByMap(map))
+             .show().focus().select();
+         $('a.close-permalink').show();
+         return false;
+       });
+
+       $('a.close-permalink').on('click', function() {
+         $('input[name="permalink"]').hide();
+         $(this).hide();
+         $('a.permalink').show();
+         $('a.upload').show();
+         return false;
+       });
+
      }
   };
 })();
