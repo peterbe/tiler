@@ -149,6 +149,7 @@ class BaseHandler(tornado.web.RequestHandler):
         cache_keys_key = 'thumbnail_grid:keys'
         self.redis.lpush(cache_keys_key, key)
 
+
 class ThumbnailGridRendererMixin(object):
 
     @tornado.gen.engine
@@ -337,7 +338,7 @@ class ImageHandler(BaseHandler):
             self.redis.setex(
                 metadata_key,
                 json.dumps(metadata),
-                60 * 60 * 24
+                60 * 60# * 24
             )
 
         now = time.mktime(datetime.datetime.utcnow().timetuple())
