@@ -168,17 +168,8 @@ class ThumbnailGridRendererMixin(object):
         count = 0
         #_now = datetime.datetime.utcnow()
         while image:
-            #hit_key = 'hits:%s' % image['fileid']
-            #image['hits'] = self.redis.get(hit_key)
-            #hit_month_key = (
-            #    'hits:%s:%s:%s' %
-            #    (_now.year, _now.month, image['fileid'])
-            #)
-            #image['hits_this_month'] = (
-            #    self.redis.get(hit_month_key)
-            #)
-
-            row.append(image)
+            if image.get('featured', True):
+                row.append(image)
 
             count += 1
             image = yield motor.Op(cursor.next_object)
