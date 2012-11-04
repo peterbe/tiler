@@ -86,7 +86,8 @@ def make_thumbnail(*args, **kwargs):  # wrapper on _make_thumbnail()
     return result
 
 
-def _make_thumbnail(image, width, extension, static_path):
+def _make_thumbnail(image, width, extension, static_path,
+                    raise_error_if_not_found=False):
     root = os.path.join(
         static_path,
         'uploads'
@@ -104,7 +105,10 @@ def _make_thumbnail(image, width, extension, static_path):
         if os.path.isfile(path):
             break
     else:
-        raise IOError(image)
+        if raise_error_if_not_found:
+            raise IOError(image)
+        else:
+            return
 
     save_filepath = save_root
     save_filepath = os.path.join(save_filepath, image)
