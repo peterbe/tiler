@@ -57,6 +57,7 @@ def scale_and_crop(path, requested_size, row, col, zoom, image):
             make_resize(path, zoom)
             t1 = time.time()
             print "\ttook", round(t1 - t0, 2), "seconds"
+            time.sleep(1)  # time to save it
 
         if os.path.isfile(_resized_file):
             print "REUSING", _resized_file
