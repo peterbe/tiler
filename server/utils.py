@@ -1,6 +1,7 @@
 import time
 import shutil
 import os
+import stat
 from PIL import Image
 import logging
 from resizer import make_resize
@@ -59,7 +60,7 @@ def scale_and_crop(path, requested_size, row, col, zoom, image):
             print "\ttook", round(t1 - t0, 2), "seconds"
             time.sleep(1)  # time to save it
 
-        if os.path.isfile(_resized_file):
+        if os.path.isfile(_resized_file) and os.stat(_resized_file)[stat.ST_SIZE]:
             print "REUSING", _resized_file
             logging.debug('REUSING %s' % _resized_file)
             im = Image.open(_resized_file)
