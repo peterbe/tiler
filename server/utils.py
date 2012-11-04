@@ -54,12 +54,15 @@ def scale_and_crop(path, requested_size, row, col, zoom, image):
             im = Image.open(_resized_file)
             #print "Assert?", (im.size, (w,h))
         else:
-            print "Need to resize..."
+            print "Need to resize... FAIL!"
+            t0 = time.time()
             im = im.resize((w, h),
                            resample=Image.ANTIALIAS)
+            t1 = time.time()
             logging.debug("SAVE RESIZED TO %s" % _resized_file)
-            #print "SAVE RESIZED TO", _resized_file
             im.save(_resized_file)
+            print "SAVE RESIZED TO", _resized_file
+            print "\t", round(t1 - t0, 2), "seconds to resize"
 
     _RESIZES[_cache_key] = im
     _TIMESTAMPS[_cache_key] = time.time()
@@ -123,7 +126,6 @@ def _make_thumbnail(image, width, extension, static_path,
         thumbnail_image = _resize_thumbnail(
             path,
             width,
-            image=image,
         )
         if thumbnail_image is not None:
             #print "Created", save_filepath
@@ -131,7 +133,8 @@ def _make_thumbnail(image, width, extension, static_path,
 
     return save_filepath
 
-def _resize_thumbnail(path, width, image):
+def _resize_thumbnail(path, width):
+    t0 = time.time()
     im = Image.open(path)
     x, y = [float(v) for v in im.size]
     xr, yr = [float(v) for v in (width, width)]
@@ -139,6 +142,8 @@ def _resize_thumbnail(path, width, image):
     w, h = int(round(x * r)), int(round(y * r))
     im = im.resize((w, h),
                    resample=Image.ANTIALIAS)
+    t1 = time.time()
+    print "Took", round(t1 - t0, 2), "seconds to resize thumbnail", path
     return im
 
 

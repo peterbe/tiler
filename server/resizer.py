@@ -44,18 +44,18 @@ def make_resize(path, zoom):
 def _resize(path, zoom):
     return _resize_2(path, zoom)
 
-    import time
-    t0=time.time()
-    r = _resize_1(path, zoom)
-    t1=time.time()
-    print "USING PIL", r, (t1-t0), "seconds"
-
-    t0=time.time()
-    r2 = _resize_2(path, zoom)
-    t1=time.time()
-    print "USING CONVERT", r2, (t1-t0), "seconds"
-
-    return r
+#    import time
+#    t0=time.time()
+#    r = _resize_1(path, zoom)
+#    t1=time.time()
+#    print "USING PIL", r, (t1-t0), "seconds"
+#
+#    t0=time.time()
+#    r2 = _resize_2(path, zoom)
+#    t1=time.time()
+#    print "USING CONVERT", r2, (t1-t0), "seconds"
+#
+#    return r
 
 
 def _resize_1(path, zoom):
@@ -91,12 +91,8 @@ def _resize_2(path, zoom):
         stderr=subprocess.PIPE
     )
     out, err = process.communicate()
-    #print "OUT"
-    #print repr(out)
-    #print "ERR"
     if err:
         logging.warning("resizer: %s" % err)
-    #print repr(err)
     return save_path
 
 

@@ -1052,17 +1052,55 @@ class DownloadUploadHandler(UploadHandler):
             #  5. make the thumbnail(s)
             #  6. optimize all created tiles
 
+            resize_jobs = {}
             for second in range(2):
                 first = not second
 
                 for zoom in ranges:
                     if ((first and zoom == self.DEFAULT_ZOOM) or
                         (second and zoom != self.DEFAULT_ZOOM)):
-                        q_high.enqueue(make_resize, destination, zoom)
+                        resize_jobs[zoom] = q_high.enqueue(
+                            make_resize,
+                            destination,
+                            zoom
+                        )
 
                 for zoom in ranges:
                     if ((first and zoom == self.DEFAULT_ZOOM) or
                         (second and zoom != self.DEFAULT_ZOOM)):
+                        # we can't add this job until the resize job is complete
+
+                        ioloop_instance = tornado.ioloop.IOLoop.instance()
+                        delay = 1
+                        max_total_delay = 10
+                        total_delay = 0
+                        while True:
+                            print "\tsleeping for", delay, "seconds",
+                            print "(%s total delay)" % total_delay
+                            yield tornado.gen.Task(
+                                ioloop_instance.add_timeout,
+                                time.time() + delay
+                            )
+                            delay += 0.1
+                            total_delay += delay
+                            if resize_jobs[zoom].result is not None:
+                                del resize_jobs[zoom]
+                                break
+                            # The maximum time the AJAX post will wait is about
+                            # 60 seconds. So we don't want to max out the
+                            # total delay time possible.
+                            if total_delay > 10:
+                                logging.warning(
+                                    "Had to give up on %d for %s" %
+                                    (zoom, fileid)
+                                )
+                                break
+
+                        #if resize_jobs.get(zoom):
+                        #    # it's still going, we're going to have to do this
+                        #    # some other time
+                        #    continue
+
                         width = 256 * (2 ** zoom)
                         extra = 1
                         # the reason for the `extra` is because some tiles

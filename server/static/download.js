@@ -36,6 +36,7 @@ var Download = (function() {
   var preload_interval = 1;
   var _has_completed = false;
   var _preload_count = 0;
+  var _progress_load_count = 0;
   var _xsrf = $('input[name="_xsrf"]').val();
 
   function show_error(message) {
@@ -90,6 +91,7 @@ var Download = (function() {
   function _really_post_success(response) {
     clearInterval(_progress_interval);
     $('#progress').hide();
+    $('#progress-giveup').hide();
     if (response.error) {
       return show_error(response.error);
     }
@@ -103,6 +105,7 @@ var Download = (function() {
     clearInterval(_progress_interval);
     $('button, input').removeAttr('disabled', 'disabled');
     $('#progress').hide();
+    $('#progress-giveup').hide();
     var msg = status;
     if (xhr.responseText) {
       msg += ': ' + xhr.responseText;
@@ -119,6 +122,13 @@ var Download = (function() {
       $('#percentage').text(percentage + '%');
       $('#progress .bar').css('width', percentage + '%');
     }
+  }
+
+  function _progress_give_up() {
+    clearInterval(_progress_interval);
+    $('button, input').attr('disabled', 'disabled');
+    $('#progress').hide();
+    $('#progress-giveup').show(100);
   }
 
   function _preview_post_success(response) {
@@ -153,6 +163,10 @@ var Download = (function() {
 
       _progress_interval = setInterval(function() {
         $.getJSON(PROGRESS_URL, {fileid: _fileid}, _progress_post_success);
+        _progress_load_count++;
+        if (_progress_load_count > 30) {
+          _progress_give_up();
+        }
       }, 1000);
   }
 
