@@ -463,7 +463,10 @@ class ImageWeightCounterHandler(BaseHandler):
         bytes = 0
         for each in urls.split('|'):
             path = os.path.join(root, each + extension)
-            bytes += os.stat(path)[stat.ST_SIZE]
+            try:
+                bytes += os.stat(path)[stat.ST_SIZE]
+            except OSError:
+                pass
         self.write({'bytes': bytes})
 
 
@@ -1042,86 +1045,68 @@ class DownloadUploadHandler(UploadHandler):
             ranges.insert(0, self.DEFAULT_ZOOM)
             extension = destination.split('.')[-1]
 
-            # The priority is important because the first impression is
-            # important.
-            # So...
-            #  1. make resize for default zoom level
-            #  2. load all tiles for default zoom level
-            #  3. make resize for all other zoom levels
-            #  4. make tiles for all other zoom levels
-            #  5. make the thumbnail(s)
-            #  6. optimize all created tiles
-
             resize_jobs = {}
-            for second in range(2):
-                first = not second
+            for zoom in ranges:
+                resize_jobs[zoom] = q_high.enqueue(
+                    make_resize,
+                    destination,
+                    zoom
+                )
 
-                for zoom in ranges:
-                    if ((first and zoom == self.DEFAULT_ZOOM) or
-                        (second and zoom != self.DEFAULT_ZOOM)):
-                        resize_jobs[zoom] = q_high.enqueue(
-                            make_resize,
-                            destination,
-                            zoom
+            for zoom in ranges:
+                # we can't add this job until the resize job is complete
+                ioloop_instance = tornado.ioloop.IOLoop.instance()
+                delay = 1
+                max_total_delay = 10
+                total_delay = 0
+                while True:
+                    print "\tsleeping for", delay, "seconds",
+                    print "(%s total delay)" % total_delay
+                    yield tornado.gen.Task(
+                        ioloop_instance.add_timeout,
+                        time.time() + delay
+                    )
+                    delay += 0.1
+                    total_delay += delay
+                    if resize_jobs[zoom].result is not None:
+                        del resize_jobs[zoom]
+                        break
+                    # The maximum time the AJAX post will wait is about
+                    # 60 seconds. So we don't want to max out the
+                    # total delay time possible.
+                    if total_delay > 5:
+                        logging.warning(
+                            "Had to give up on %d for %s" %
+                            (zoom, fileid)
                         )
+                        break
 
-                for zoom in ranges:
-                    if ((first and zoom == self.DEFAULT_ZOOM) or
-                        (second and zoom != self.DEFAULT_ZOOM)):
-                        # we can't add this job until the resize job is complete
+                #if resize_jobs.get(zoom):
+                #    # it's still going, we're going to have to do this
+                #    # some other time
+                #    continue
 
-                        ioloop_instance = tornado.ioloop.IOLoop.instance()
-                        delay = 1
-                        max_total_delay = 10
-                        total_delay = 0
-                        while True:
-                            print "\tsleeping for", delay, "seconds",
-                            print "(%s total delay)" % total_delay
-                            yield tornado.gen.Task(
-                                ioloop_instance.add_timeout,
-                                time.time() + delay
-                            )
-                            delay += 0.1
-                            total_delay += delay
-                            if resize_jobs[zoom].result is not None:
-                                del resize_jobs[zoom]
-                                break
-                            # The maximum time the AJAX post will wait is about
-                            # 60 seconds. So we don't want to max out the
-                            # total delay time possible.
-                            if total_delay > 10:
-                                logging.warning(
-                                    "Had to give up on %d for %s" %
-                                    (zoom, fileid)
-                                )
-                                break
-
-                        #if resize_jobs.get(zoom):
-                        #    # it's still going, we're going to have to do this
-                        #    # some other time
-                        #    continue
-
-                        width = 256 * (2 ** zoom)
-                        extra = 1
-                        # the reason for the `extra` is because some tiles
-                        # are going *outside* the original width and height
-                        # of the original
-                        # We increment the extra based on the width
-                        #print "ZOOM", zoom
-                        #print "\tWIDTH", width
-                        #print "\tEXTRA", extra
-                        #print "\tDIVISION", (width / 256)
-                        cols = rows = extra + width / 256
-                        q_default.enqueue(
-                            make_tiles,
-                            image_split,
-                            256,
-                            zoom,
-                            rows,
-                            cols,
-                            extension,
-                            self.application.settings['static_path']
-                        )
+                width = 256 * (2 ** zoom)
+                extra = 1
+                # the reason for the `extra` is because some tiles
+                # are going *outside* the original width and height
+                # of the original
+                # We increment the extra based on the width
+                #print "ZOOM", zoom
+                #print "\tWIDTH", width
+                #print "\tEXTRA", extra
+                #print "\tDIVISION", (width / 256)
+                cols = rows = extra + width / 256
+                q_default.enqueue(
+                    make_tiles,
+                    image_split,
+                    256,
+                    zoom,
+                    rows,
+                    cols,
+                    extension,
+                    self.application.settings['static_path']
+                )
 
             # it's important to know how the thumbnail needs to be generated
             # and it's important to do the thumbnail soon since otherwise
@@ -1244,6 +1229,8 @@ class TileHandler(BaseHandler):
     to S3.
     """
 
+    @tornado.web.asynchronous
+    @tornado.gen.engine
     def get(self, image, size, zoom, row, col, extension):
         if extension == 'png':
             self.set_header('Content-Type', 'image/png')
@@ -1253,12 +1240,31 @@ class TileHandler(BaseHandler):
         if size != 256:
             raise tornado.web.HTTPError(400, 'size must be 256')
 
-        try:
-            save_filepath = make_tile(image, size, zoom, row, col, extension,
-                                      self.application.settings['static_path'])
+        priority = self.application.settings['debug'] and 'default' or 'high'
+        q = Queue(priority, connection=self.redis)
+        job = q.enqueue(
+            make_tile,
+            image,
+            size,
+            zoom,
+            row,
+            col,
+            extension,
+            self.application.settings['static_path']
+        )
+        ioloop_instance = tornado.ioloop.IOLoop.instance()
+        delay = 0.1
+        thumbnail_filepath = None
+        while True:
+            yield tornado.gen.Task(
+                ioloop_instance.add_timeout,
+                time.time() + delay
+            )
+            delay *= 2
+            if job.result is not None:
+                save_filepath = job.result
+                break
 
-        except IOError, msg:
-            raise tornado.web.HTTPError(404, msg)
         try:
             _cache_seconds = 60 * 60 * 24
             self.set_header(
@@ -1300,6 +1306,8 @@ class TileHandler(BaseHandler):
                 'broken.png'
             )
             self.write(open(broken_filepath, 'rb').read())
+
+        self.finish()
 
 
 @route(r'/thumbnails/(?P<image>\w{1}/\w{2}/\w{6})/(?P<width>\w{1,3})'

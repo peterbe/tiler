@@ -3,6 +3,7 @@ import shutil
 import os
 from PIL import Image
 import logging
+from resizer import make_resize
 
 
 def mkdir(newdir):
@@ -48,6 +49,15 @@ def scale_and_crop(path, requested_size, row, col, zoom, image):
     if already:
         im = already
     else:
+        if not os.path.isfile(_resized_file):
+            # resizer.make_resize() uses `convert` so it's much more memory
+            # efficient
+            print "Having to use make_resize()"
+            t0 = time.time()
+            make_resize(path, zoom)
+            t1 = time.time()
+            print "\ttook", round(t1 - t0, 2), "seconds"
+
         if os.path.isfile(_resized_file):
             print "REUSING", _resized_file
             logging.debug('REUSING %s' % _resized_file)
@@ -56,6 +66,7 @@ def scale_and_crop(path, requested_size, row, col, zoom, image):
         else:
             print "Need to resize... FAIL!"
             t0 = time.time()
+
             im = im.resize((w, h),
                            resample=Image.ANTIALIAS)
             t1 = time.time()
