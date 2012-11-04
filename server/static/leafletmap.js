@@ -4,8 +4,9 @@ var Hashing = (function() {
 
   function setHash(zoom, lat, lng) {
     var precision = Math.max(0, Math.ceil(Math.log(zoom) / Math.LN2));
-    location.hash = '#' + zoom.toFixed(2) + '/' +
+    hash = '#' + zoom.toFixed(2) + '/' +
                     lat.toFixed(precision) + '/' + lng.toFixed(precision);
+    location.replace(hash);
   }
 
   return {
