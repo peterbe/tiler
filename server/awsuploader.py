@@ -134,7 +134,6 @@ def upload_all_tiles(fileid, static_path, bucket_id, max_count=0,
         IOLoop.instance().stop()
 
 
-
 def upload_tiles(fileid, static_path, max_count=10,
                  only_if_no_cdn_domain=False):
     upload_all_tiles(

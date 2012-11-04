@@ -341,6 +341,8 @@ class ImageHandler(BaseHandler):
                 'width': width,
                 'cdn_domain': cdn_domain,
             }
+            if document.get('ranges'):
+                metadata['ranges'] = document['ranges']
             self.redis.setex(
                 metadata_key,
                 json.dumps(metadata),
@@ -350,14 +352,17 @@ class ImageHandler(BaseHandler):
         now = time.mktime(datetime.datetime.utcnow().timetuple())
         age = now - date_timestamp
 
-        ranges = []
-        _range = self.DEFAULT_RANGE_MIN
-        while True:
-            ranges.append(_range)
-            range_width = 256 * (2 ** _range)
-            if range_width > width or _range >= self.DEFAULT_RANGE_MAX:
-                break
-            _range += 1
+        if metadata.get('ranges'):
+            ranges = metadata.get('ranges')
+        else:
+            ranges = []
+            _range = self.DEFAULT_RANGE_MIN
+            while True:
+                ranges.append(_range)
+                range_width = 256 * (2 ** _range)
+                if range_width > width or _range >= self.DEFAULT_RANGE_MAX:
+                    break
+                _range += 1
 
         can_edit = self.get_current_user() == owner
 
@@ -382,7 +387,7 @@ class ImageHandler(BaseHandler):
                     fileid,
                     self.application.settings['static_path']
                 )
-                self.redis.setex(lock_key, 1, 60 * 60 * 24)
+                self.redis.setex(lock_key, 1, 60 * 60)
                 priority = self.application.settings['debug'] and 'default' or 'low'
                 q = Queue(priority, connection=self.redis)
                 logging.info("About to upload %s tiles" % _no_tiles)
