@@ -4,6 +4,7 @@ import random
 import os
 import motor
 import pymongo
+import logging
 from boto.s3.connection import Location, S3Connection
 from boto.s3.key import Key
 from tornado import gen
@@ -51,6 +52,10 @@ def upload_all_tiles(fileid, static_path, bucket_id, max_count=0,
         db.images.find_one,
         {'fileid': fileid}
     )
+    if not document:
+        logging.warning("Image %r does not exist" % fileid)
+        IOLoop.instance().stop()
+        return
 
     if document.get('cdn_domain'):
         if only_if_no_cdn_domain:

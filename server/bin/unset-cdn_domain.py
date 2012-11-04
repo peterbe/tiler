@@ -36,8 +36,8 @@ def run(*fileids):
                 print "Invalidated metadata cache"
                 _redis.delete(metadata_key)
             lock_key = 'uploading:%s' % document['fileid']
-            # locking it from aws upload for 1 hour
-            _redis.setex(lock_key, 1, 60 * 60)
+            # locking it from aws upload for 1 minute
+            _redis.setex(lock_key, 1, 60)
 
             upload_log = os.path.join(
                 ROOT,

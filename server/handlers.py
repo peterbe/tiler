@@ -1072,7 +1072,16 @@ class DownloadUploadHandler(UploadHandler):
                     if ((first and zoom == self.DEFAULT_ZOOM) or
                         (second and zoom != self.DEFAULT_ZOOM)):
                         width = 256 * (2 ** zoom)
-                        cols = rows = width / 256
+                        extra = 1
+                        # the reason for the `extra` is because some tiles
+                        # are going *outside* the original width and height
+                        # of the original
+                        # We increment the extra based on the width
+                        #print "ZOOM", zoom
+                        #print "\tWIDTH", width
+                        #print "\tEXTRA", extra
+                        #print "\tDIVISION", (width / 256)
+                        cols = rows = extra + width / 256
                         q_default.enqueue(
                             make_tiles,
                             image_split,

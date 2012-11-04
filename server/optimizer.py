@@ -29,7 +29,7 @@ def optimize_images(image, zoom, extension, static_path):
     def kb(s):
         return "%.1fKb" % (s / 1000.0)
 
-    print "Took", (t1 - t0), "seconds to optimize", len(files), "tiles"
+    print "Took", round(t1 - t0, 2), "seconds to optimize", len(files), "tiles"
     print "From", kb(total_before), "to", kb(total_after),
     print "saving", kb(total_before - total_after)
 
@@ -57,7 +57,7 @@ def optimize_thumbnails(image, extension, static_path):
     def kb(s):
         return "%.1fKb" % (s / 1000.0)
 
-    print "Took", (t1 - t0), "seconds to optimize", len(files), "thumbnails"
+    print "Took", round(t1 - t0, 2), "seconds to optimize", len(files), "thumbnails"
     print "From", kb(total_before), "to", kb(total_after),
     print "Saving", kb(total_before - total_after)
 
