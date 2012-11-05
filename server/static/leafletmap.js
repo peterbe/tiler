@@ -30,17 +30,18 @@ var Hashing = (function() {
          args = null;
        }
        if (args) {
+         console.log('Switch on hashing');
+         _hashing_on = true;
          map.setView([args[1], args[2]], args[0]);
        } else {
-         _hashing_on = true;
          // Default!
          map.setView([DEFAULT_LAT, DEFAULT_LNG], default_zoom);
-         setHash(default_zoom, DEFAULT_LAT, DEFAULT_LNG);
+         console.log('No hashing');
        }
 
        // set up the event
        map.on('move', function(event) {
-         if (_hashing_on) return;
+         if (!_hashing_on) return;
          var c = event.target.getCenter();
          setHash(event.target.getZoom(), c.lat, c.lng);
        });
