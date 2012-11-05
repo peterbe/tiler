@@ -30,10 +30,19 @@ class AdminBaseHandler(BaseHandler):
         return user in settings.ADMIN_EMAILS
 
     def _count_tiles(self, image):
-        return count_all_tiles(
-            image['fileid'],
-            self.application.settings['static_path']
-        )
+        count_key = 'count_all_tiles:%s' % image['fileid']
+        count = self.redis.get(count_key)
+        if count is None:
+            count = count_all_tiles(
+                image['fileid'],
+                self.application.settings['static_path']
+            )
+            self.redis.setex(
+                count_key,
+                count,
+                60 * 60
+            )
+        return count
 
     def _calculate_ranges(self, image):
         ranges = []
@@ -205,10 +214,23 @@ class AdminTilesHandler(AdminBaseHandler):
             _ranges = [int(x) for x in _ranges]
         image['ranges'] = _ranges or self._calculate_ranges(image)
         image['expected_tiles'] = self._expected_tiles(image)
+        _tiles_before = self.get_argument('before', None)
+        if _tiles_before is not None and _tiles_before != image['found_tiles']:
+            if image.get('cdn_domain'):
+                yield motor.Op(
+                    self.db.images.update,
+                    {'_id': image['_id']},
+                    {'$unset': {'cdn_domain': 1}}
+                )
+                image['cdn_domain'] = None
+                lock_key = 'uploading:%s' % fileid
+                # locking it from aws upload for 1 hour
+                self.redis.setex(lock_key, time.time(), 60 * 60)
+
         data = {
             'image_split': image_split,
             'ranges': image['ranges'],
-            'found_tiles_before': self.get_argument('before', None),
+            'found_tiles_before': _tiles_before,
         }
         data['image'] = image
         _cols = {}
@@ -279,6 +301,9 @@ class AdminPrepareAllTilesHandler(AdminBaseHandler, TileMakerMixin):
             ranges,
             extension,
         )
+
+        count_key = 'count_all_tiles:%s' % image['fileid']
+        self.redis.delete(count_key)
 
         url = self.reverse_url('admin_tiles', fileid)
         data = {

@@ -1373,6 +1373,11 @@ class TileHandler(BaseHandler):
                     max_count=10,
                     only_if_no_cdn_domain=True
                 )
+
+            # this is used by the admin
+            count_key = 'count_all_tiles:%s' % image['fileid']
+            self.redis.delete(count_key)
+
         except IOError:
             self.set_header('Content-Type', 'image/png')
             self.set_header(
