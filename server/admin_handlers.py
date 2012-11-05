@@ -118,6 +118,7 @@ class AdminHomeHandler(AdminBaseHandler):
         image = yield motor.Op(cursor.next_object)
         images = []
         count = 0
+
         while image:
             if not image.get('width'):
                 if image['contenttype'] == 'image/jpeg':
@@ -149,6 +150,9 @@ class AdminHomeHandler(AdminBaseHandler):
                 image['height'] = data['height']
 
             self.attach_tiles_info(image)
+            if not image.get('cdn_domain'):
+                lock_key = 'uploading:%s' % image['fileid']
+                image['uploading_locked'] = self.redis.get(lock_key)
             count += 1
             images.append(image)
             image = yield motor.Op(cursor.next_object)
@@ -191,6 +195,18 @@ class AdminImageHandler(AdminBaseHandler):
 
         lock_key = 'uploading:%s' % fileid
         uploading_locked = self.redis.get(lock_key)
+        if uploading_locked:
+            try:
+                uploading_locked = int(float(uploading_locked))
+                if uploading_locked != 1:
+                    diff = int(time.time()) - uploading_locked
+                    left = 60 * 60 - diff
+                    if left > 60:
+                        uploading_locked = "%s minutes left" % (left / 60)
+                    else:
+                        uploading_locked = "%s seconds left" % left
+            except ValueError:
+                pass
 
         data = {
             'image': image,

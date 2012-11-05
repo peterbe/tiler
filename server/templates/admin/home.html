@@ -30,7 +30,11 @@
       <td>{% if image.get('cdn_domain') %}
       <i class="icon-ok"></i>
       {% else %}
-      <i class="icon-minus-sign"></i>
+        {% if image['uploading_locked'] %}
+        <i class="icon-lock"></i>
+	{% else %}
+        <i class="icon-minus-sign"></i>
+	{% end %}
       {% end %}
       </td>
       <td>{% if image.get('featured', True) %}
