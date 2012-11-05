@@ -99,7 +99,7 @@ class AdminHomeHandler(AdminBaseHandler):
         page_size = 100
         skip = page_size * (page - 1)
         cursor = (
-            self.db.images.find()
+            self.db.images.find({'width': {'$exists': True}})
             .sort([('date', -1)])
             .limit(page_size)
             .skip(skip)
@@ -119,7 +119,10 @@ class AdminHomeHandler(AdminBaseHandler):
                     self.application.settings['static_path'],
                     extension,
                 )
-                assert original
+                if not original:
+                    image = yield motor.Op(cursor.next_object)
+                    continue
+
                 size = Image.open(original).size
                 data = {
                     'width': size[0],

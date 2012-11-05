@@ -204,7 +204,7 @@ class ThumbnailGridRendererMixin(object):
         count = 0
         #_now = datetime.datetime.utcnow()
         while image:
-            if image.get('featured', True):
+            if image.get('width') and image.get('featured', True):
                 row.append(image)
 
             count += 1
@@ -1150,7 +1150,7 @@ class DownloadUploadHandler(UploadHandler, TileMakerMixin):
             http_client.fetch,
             url,
             headers={},
-            request_timeout=200.0,  # 20.0 is the default
+            request_timeout=600.0,  # 20.0 is the default
             streaming_callback=functools.partial(my_streaming_callback,
                                                  destination_file)
         )
