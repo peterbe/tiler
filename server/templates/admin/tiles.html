@@ -5,11 +5,20 @@
 <div class="row">
 
   <div class="span12">
-    <form id="#resubmit" action="." method="post" style="float:right">
-      <button type="submit">Resubmit to prepare all tiles</button>
-    </form>
+    <div style="float:right">
+      <form id="#resubmit" method="post"
+       action="{{ reverse_url('admin_prepare_all_tiles', image['fileid']) }}">
+        <button type="submit">Resubmit to prepare all tiles</button>
+      </form>
+    </div>
     <h2>Image <a href="{{ reverse_url('image', image['fileid']) }}">{{ image['fileid'] }}</a></h2>
-    <h3># Found tiles: {{ image['found_tiles'] }}</h3>
+    <h3># Found tiles: {{ image['found_tiles'] }}
+    {% if found_tiles_before is not None %}
+    (previous: {{ found_tiles_before }})
+    {% end %}
+    </h3>
+
+
     <h3># Expected tiles: {{ image['expected_tiles'] }}</h3>
     <table class="table table-condensed">
     {% for zoom in ranges %}

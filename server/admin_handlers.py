@@ -1,12 +1,15 @@
+import urllib
 import os
 import tornado.web
 import tornado.gen
+from PIL import Image
 from tornado_utils.routes import route
 import motor
 
 from handlers import BaseHandler, TileMakerMixin
-from utils import count_all_tiles, find_all_tiles
+from utils import count_all_tiles, find_original
 import settings
+
 
 class AdminBaseHandler(BaseHandler):
 
@@ -78,10 +81,40 @@ class AdminHomeHandler(AdminBaseHandler):
         image = yield motor.Op(cursor.next_object)
         images = []
         while image:
+            if not image.get('width'):
+                if image['contenttype'] == 'image/jpeg':
+                    extension = 'jpg'
+                elif image['contenttype'] == 'image/png':
+                    extension = 'png'
+                else:
+                    raise NotImplementedError
+                original = find_original(
+                    image['fileid'],
+                    self.application.settings['static_path'],
+                    extension,
+                )
+                assert original
+                size = Image.open(original).size
+                data = {
+                    'width': size[0],
+                    'height': size[1]
+                }
+                yield motor.Op(
+                    self.db.images.update,
+                    {'_id': image['_id']},
+                    {'$set': data}
+                )
+                image['width'] = data['width']
+                image['height'] = data['height']
+
             image['found_tiles'] = self._count_tiles(image)
-            image['ranges'] = image.get('ranges') or self._calculate_ranges(image)
+            image['ranges'] = (
+                image.get('ranges') or self._calculate_ranges(image)
+            )
             image['expected_tiles'] = self._expected_tiles(image)
-            image['too_few_tiles'] = image['found_tiles'] < image['expected_tiles']
+            image['too_few_tiles'] = (
+                image['found_tiles'] < image['expected_tiles']
+            )
             images.append(image)
             image = yield motor.Op(cursor.next_object)
 
@@ -92,12 +125,8 @@ class AdminHomeHandler(AdminBaseHandler):
         self.render('admin/home.html', **data)
 
 
-
 @route('/admin/(?P<fileid>\w{9})/tiles/', name='admin_tiles')
-class AdminTilesHandler(AdminBaseHandler, TileMakerMixin):
-
-    def check_xsrf_cookie(self):
-        pass
+class AdminTilesHandler(AdminBaseHandler):
 
     @tornado.web.asynchronous
     @tornado.gen.engine
@@ -117,11 +146,6 @@ class AdminTilesHandler(AdminBaseHandler, TileMakerMixin):
             fileid[3:]
         )
 
-        all_tiles = list(find_all_tiles(
-            image['fileid'],
-            self.application.settings['static_path']
-        ))
-
         if image['contenttype'] == 'image/jpeg':
             extension = 'jpg'
         elif image['contenttype'] == 'image/png':
@@ -133,8 +157,9 @@ class AdminTilesHandler(AdminBaseHandler, TileMakerMixin):
         image['ranges'] = image.get('ranges') or self._calculate_ranges(image)
         image['expected_tiles'] = self._expected_tiles(image)
         data = {
-          'image_split': image_split,
-          'ranges': image['ranges'],
+            'image_split': image_split,
+            'ranges': image['ranges'],
+            'found_tiles_before': self.get_argument('before', None),
         }
         data['image'] = image
         _cols = {}
@@ -166,6 +191,14 @@ class AdminTilesHandler(AdminBaseHandler, TileMakerMixin):
 
         self.render('admin/tiles.html', **data)
 
+
+@route('/admin/(?P<fileid>\w{9})/tiles/prepare_all/',
+       name='admin_prepare_all_tiles')
+class AdminPrepareAllTilesHandler(AdminBaseHandler, TileMakerMixin):
+
+    def check_xsrf_cookie(self):
+        pass
+
     @tornado.web.asynchronous
     @tornado.gen.engine
     def post(self, fileid):
@@ -180,6 +213,8 @@ class AdminTilesHandler(AdminBaseHandler, TileMakerMixin):
             fileid,
             content_type=image['contenttype']
         )
+
+        count_before = self._count_tiles(image)
 
         ranges = self._calculate_ranges(image)
         ranges.remove(self.DEFAULT_ZOOM)
@@ -196,8 +231,10 @@ class AdminTilesHandler(AdminBaseHandler, TileMakerMixin):
         )
 
         url = self.reverse_url('admin_tiles', fileid)
+        data = {
+            'before': str(count_before),
+        }
         if had_to_give_up:
-            url += '?had_to_give_up=1'
-        self.redirect(url)
-        #self.write({'had_to_give_up': had_to_give_up})
-        #self.finish()
+            data['had_to_give_up'] = 'true'
+
+        self.redirect(url + '?' + urllib.urlencode(data))
