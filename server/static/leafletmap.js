@@ -30,13 +30,11 @@ var Hashing = (function() {
          args = null;
        }
        if (args) {
-         console.log('Switch on hashing');
          _hashing_on = true;
          map.setView([args[1], args[2]], args[0]);
        } else {
          // Default!
          map.setView([DEFAULT_LAT, DEFAULT_LNG], default_zoom);
-         console.log('No hashing');
        }
 
        // set up the event
