@@ -105,16 +105,19 @@ class AdminHomeHandler(AdminBaseHandler):
     def get(self):
         data = {}
         page = int(self.get_argument('page', 1))
-        page_size = 100
+        page_size = 20
         skip = page_size * (page - 1)
+        search = {'width': {'$exists': True}}
+        total_count = yield motor.Op(self.db.images.find(search).count)
         cursor = (
-            self.db.images.find({'width': {'$exists': True}})
+            self.db.images.find(search)
             .sort([('date', -1)])
             .limit(page_size)
             .skip(skip)
         )
         image = yield motor.Op(cursor.next_object)
         images = []
+        count = 0
         while image:
             if not image.get('width'):
                 if image['contenttype'] == 'image/jpeg':
@@ -146,11 +149,25 @@ class AdminHomeHandler(AdminBaseHandler):
                 image['height'] = data['height']
 
             self.attach_tiles_info(image)
+            count += 1
             images.append(image)
             image = yield motor.Op(cursor.next_object)
 
+        pagination = None
+        if total_count > count:
+            # pagination in order!
+            pagination = {
+                'current_page': page,
+                'range': range(1, total_count / page_size + 2)
+            }
+            if (page - 1) * page_size > 0:
+                pagination['prev'] = page - 1
+            if page * page_size < total_count:
+                pagination['next'] = page + 1
+
+        data['pagination'] = pagination
+
         data['images'] = images
-        total_count = yield motor.Op(self.db.images.find().count)
         data['total_count'] = total_count
 
         self.render('admin/home.html', **data)

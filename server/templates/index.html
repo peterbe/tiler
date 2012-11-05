@@ -23,17 +23,7 @@
 
       {% raw thumbnail_grid %}
 
-      {% if pagination %}
-      <div class="pagination pagination-centered">
-        <ul>
-          <li{% if not pagination.get('prev') %} class="disabled"{% end %}><a href="?page={{ pagination.get('prev', pagination['current_page']) }}">Prev</a></li>
-          {% for page in pagination['range'] %}
-          <li{% if page == pagination['current_page'] %} class="active"{% end %}><a href="?page={{ page }}">{{ page }}</a>
-          {% end %}
-          <li{% if not pagination.get('next') %} class="disabled"{% end %}><a href="?page={{ pagination.get('next', pagination['current_page']) }}">Next</a></li>
-        </ul>
-      </div>
-      {% end %}
+      {% include "_pagination.html" %}
 
 
 {% end %}
