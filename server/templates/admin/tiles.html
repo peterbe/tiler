@@ -1,0 +1,43 @@
+{% extends "../base.html" %}
+
+
+{% block main %}
+
+<div class="row">
+
+  <div class="span12">
+    <form id="#resubmit" action="." method="post" style="float:right">
+      <button type="submit">Resubmit to prepare all tiles</button>
+    </form>
+    <h2>Image <a href="{{ reverse_url('image', image['fileid']) }}">{{ image['fileid'] }}</a></h2>
+    <h3># Found tiles: {{ image['found_tiles'] }}</h3>
+    <h3># Expected tiles: {{ image['expected_tiles'] }}</h3>
+    <table class="table table-condensed">
+    {% for zoom in ranges %}
+    {% for row in range(rows[zoom]) %}
+    {% for col in range(cols[zoom]) %}
+    <tr>
+      <td>{{ zoom }}:</td>
+      <td>{{ row }},{{ col }}</td>
+      <td>
+      {% if tiles[zoom]['%s,%s' % (row, col)] %}
+      <span style="color:green">Yes</span>
+      {% else %}
+      <span style="color:red;font-weight:bold">No</span>
+      {% end %}
+      </td>
+    </tr>
+    {% end %}
+    {% end %}
+    {% end %}
+    </table>
+  </div>
+</div>
+{% end %}
+
+
+{% block extra_js %}
+<script type="text/javascript">
+</script>
+
+{% end %}

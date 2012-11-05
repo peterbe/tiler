@@ -95,10 +95,15 @@ var Download = (function() {
     if (response.error) {
       return show_error(response.error);
     }
-    var base_url = location.href.replace(location.pathname, '');
-    $('#url').text(base_url + response.url).attr('href', response.url);
-    $('#precomplete').show();
-    start_preloading();
+    if (response.email) {
+      $('#email .email').text(response.email);
+      $('#email').show();
+    } else {
+      var base_url = location.href.replace(location.pathname, '');
+      $('#url').text(base_url + response.url).attr('href', response.url);
+      $('#precomplete').show();
+      start_preloading();
+    }
   }
 
   function _really_post_error(xhr, status, error_thrown) {
@@ -164,7 +169,7 @@ var Download = (function() {
       _progress_interval = setInterval(function() {
         $.getJSON(PROGRESS_URL, {fileid: _fileid}, _progress_post_success);
         _progress_load_count++;
-        if (_progress_load_count > 30) {
+        if (_progress_load_count >= 60) {
           _progress_give_up();
         }
       }, 1000);

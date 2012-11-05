@@ -22,10 +22,13 @@ from tornado_utils.routes import route
 from rq import Queue
 import motor
 from utils import (
-mkdir, make_tile, make_tiles, make_thumbnail, delete_image, count_all_tiles)
+    mkdir, make_tile, make_tiles, make_thumbnail, delete_image,
+    count_all_tiles
+)
 from optimizer import optimize_images, optimize_thumbnails
 from awsuploader import upload_tiles, upload_original
 from resizer import make_resize
+from emailer import send_url
 import settings
 
 
@@ -149,6 +152,38 @@ class BaseHandler(tornado.web.RequestHandler):
         cache_keys_key = 'thumbnail_grid:keys'
         self.redis.lpush(cache_keys_key, key)
 
+    def get_extra_rows_cols(self, zoom):
+        if zoom == 2:
+            return 0
+        return 1  # default
+
+    def make_destination(self, fileid, content_type=None):
+        root = os.path.join(
+            self.application.settings['static_path'],
+            'uploads'
+        )
+        if not os.path.isdir(root):
+            os.mkdir(root)
+        destination = os.path.join(
+            root,
+            fileid[:1],
+            fileid[1:3],
+        )
+        # so far, it's the directory
+        mkdir(destination)
+        # this is the full file path
+        destination += '/%s' % fileid[3:]
+        if content_type is None:
+            content_type = self.redis.get('contenttype:%s' % fileid)
+        # complete it with the extension
+        if content_type == 'image/png':
+            destination += '.png'
+        else:
+            assert content_type == 'image/jpeg', content_type
+            destination += '.jpg'
+
+        return destination
+
 
 class ThumbnailGridRendererMixin(object):
 
@@ -186,6 +221,7 @@ class ThumbnailGridRendererMixin(object):
 
 hits_html_regex = re.compile('<!--hits:(\w+)-->')
 
+
 @route('/', name='home')
 class HomeHandler(BaseHandler, ThumbnailGridRendererMixin):
 
@@ -206,7 +242,10 @@ class HomeHandler(BaseHandler, ThumbnailGridRendererMixin):
 
         page_size = 12
         _search_values = search.values()
-        cache_key = 'thumbnail_grid:%s:%s:%s' % (page, page_size, _search_values)
+        cache_key = (
+            'thumbnail_grid:%s:%s:%s' %
+            (page, page_size, _search_values)
+        )
         result = self.redis.get(cache_key)
         if result:
             thumbnail_grid, count = tornado.escape.json_decode(result)
@@ -243,6 +282,7 @@ class HomeHandler(BaseHandler, ThumbnailGridRendererMixin):
 
     def insert_hits_html(self, html):
         _now = datetime.datetime.utcnow()
+
         def replacer(match):
             fileid = match.groups()[0]
             hit_key = 'hits:%s' % fileid
@@ -268,7 +308,6 @@ class HomeHandler(BaseHandler, ThumbnailGridRendererMixin):
             return match.group()
         html = hits_html_regex.sub(replacer, html)
         return html
-
 
 
 @route('/(\w{9})', 'image')
@@ -338,7 +377,7 @@ class ImageHandler(BaseHandler):
             self.redis.setex(
                 metadata_key,
                 json.dumps(metadata),
-                60 * 60# * 24
+                60 * 60  # * 24
             )
 
         now = time.mktime(datetime.datetime.utcnow().timetuple())
@@ -375,12 +414,14 @@ class ImageHandler(BaseHandler):
                 print "AWS uploading is locked"
             else:
                 # we're ready to upload it
-                _no_tiles =  count_all_tiles(
+                _no_tiles = count_all_tiles(
                     fileid,
                     self.application.settings['static_path']
                 )
                 self.redis.setex(lock_key, 1, 60 * 60)
-                priority = self.application.settings['debug'] and 'default' or 'low'
+                priority = (
+                    self.application.settings['debug'] and 'default' or 'low'
+                )
                 q = Queue(priority, connection=self.redis)
                 logging.info("About to upload %s tiles" % _no_tiles)
                 # bulk the queue workers with 100 each
@@ -523,6 +564,7 @@ class ImageEditHandler(BaseHandler):
         self.write(data)
         self.finish()
 
+
 class AnnotationBaseHandler(BaseHandler):
 
     def get_annotation_html(self, annotation, yours):
@@ -531,13 +573,13 @@ class AnnotationBaseHandler(BaseHandler):
             tornado.escape.linkify(annotation['title'])
         )
         if yours:
-             html += (
-                 '<p><a href="#" onclick="return Annotations.edit(\'%s\')"'
-                 '>edit</a> &ndash; '
-                 '<a href="#" onclick="return Annotations.delete_(\'%s\')"'
-                 '>delete</a></p>' %
-                 (annotation['_id'], annotation['_id'])
-             )
+            html += (
+                '<p><a href="#" onclick="return Annotations.edit(\'%s\')"'
+                '>edit</a> &ndash; '
+                '<a href="#" onclick="return Annotations.delete_(\'%s\')"'
+                '>delete</a></p>' %
+                (annotation['_id'], annotation['_id'])
+            )
         return html
 
 
@@ -596,7 +638,14 @@ class ImageAnnotationsHandler(AnnotationBaseHandler):
 
         title = self.get_argument('title').strip()
         type_ = self.get_argument('type')
-        assert type_ in ('polyline', 'rectangle', 'polygon', 'marker', 'circle'), type_
+        _recognized_types = (
+            'polyline',
+            'rectangle',
+            'polygon',
+            'marker',
+            'circle',
+        )
+        assert type_ in _recognized_types, type_
         latlngs_json = self.get_argument('latlngs')
         latlngs = tornado.escape.json_decode(latlngs_json)
         #pprint(latlngs)
@@ -629,7 +678,11 @@ class ImageAnnotationsHandler(AnnotationBaseHandler):
         if type_ == 'circle':
             annotation['radius'] = float(self.get_argument('radius'))
 
-        _id = yield motor.Op(self.db.annotations.insert, annotation, safe=False)
+        _id = yield motor.Op(
+            self.db.annotations.insert,
+            annotation,
+            safe=False
+        )
         annotation['_id'] = _id
 
         data = {
@@ -803,37 +856,12 @@ class ImageDeleteHandler(BaseHandler):
         self.write("Deleted")
         self.finish()
 
+
 @route('/upload', 'upload')
 class UploadHandler(BaseHandler):
 
     def get(self):
         self.render('upload.html')
-
-    def make_destination(self, fileid):
-        root = os.path.join(
-            self.application.settings['static_path'],
-            'uploads'
-        )
-        if not os.path.isdir(root):
-            os.mkdir(root)
-        destination = os.path.join(
-            root,
-            fileid[:1],
-            fileid[1:3],
-        )
-        # so far, it's the directory
-        mkdir(destination)
-        # this is the full file path
-        destination += '/%s' % fileid[3:]
-        content_type = self.redis.get('contenttype:%s' % fileid)
-        # complete it with the extension
-        if content_type == 'image/png':
-            destination += '.png'
-        else:
-            assert content_type == 'image/jpeg', content_type
-            destination += '.jpg'
-
-        return destination
 
 
 @route('/upload/preview', 'upload_preview')
@@ -898,7 +926,6 @@ class PreviewUploadHandler(UploadHandler):
                             head_response.headers.get('Content-Encoding', ''))
             expected_size = 0
 
-
         fileid = uuid.uuid4().hex[:9]
         _count = yield motor.Op(self.db.images.find({'fileid': fileid}).count)
         while _count:
@@ -958,8 +985,149 @@ def my_streaming_callback(destination_file, data):
     destination_file.write(data)
 
 
+class TileMakerMixin(object):
+
+    @tornado.gen.engine
+    def prepare_all_tiles(self, fileid, destination, ranges, extension,
+                          callback):
+        had_to_give_up = False
+        image_split = fileid[:1] + '/' + fileid[1:3] + '/' + fileid[3:]
+
+        if self.application.settings['debug']:
+            q_high = Queue('default', connection=self.redis)
+            q_default = Queue('default', connection=self.redis)
+            q_low = Queue('default', connection=self.redis)
+        else:
+            q_high = Queue('high', connection=self.redis)
+            q_default = Queue('default', connection=self.redis)
+            q_low = Queue('default', connection=self.redis)
+
+        resize_jobs = {}
+        for zoom in ranges:
+            resize_jobs[zoom] = q_high.enqueue(
+                make_resize,
+                destination,
+                zoom
+            )
+
+        for zoom in ranges:
+            print "Resizes:"
+            pprint(dict((k, v.result) for (k,v) in resize_jobs.items()))
+            # we can't add this job until the resize job is complete
+            ioloop_instance = tornado.ioloop.IOLoop.instance()
+            delay = 0.5
+            max_total_delay = 10
+            total_delay = 0
+            while True:
+                print "\tsleeping for", delay, "seconds",
+                print "(%s total delay)" % total_delay
+                yield tornado.gen.Task(
+                    ioloop_instance.add_timeout,
+                    time.time() + delay
+                )
+                delay += 0.1
+                total_delay += delay
+                if resize_jobs[zoom].result is not None:
+                    del resize_jobs[zoom]
+                    break
+                # The maximum time the AJAX post will wait is about
+                # 60 seconds. So we don't want to max out the
+                # total delay time possible.
+                if total_delay > max_total_delay:
+                    logging.warning(
+                        "Had to give up on %d for %s" %
+                        (zoom, fileid)
+                    )
+                    had_to_give_up = True
+                    break
+
+            #if resize_jobs.get(zoom):
+            #    # it's still going, we're going to have to do this
+            #    # some other time
+            #    continue
+
+            width = 256 * (2 ** zoom)
+            extra = self.get_extra_rows_cols(zoom)
+            # the reason for the `extra` is because some tiles
+            # are going *outside* the original width and height
+            # of the original
+            # We increment the extra based on the width
+            #print "ZOOM", zoom
+            #print "\tWIDTH", width
+            #print "\tEXTRA", extra
+            #print "\tDIVISION", (width / 256)
+            cols = rows = extra + width / 256
+            q_default.enqueue(
+                make_tiles,
+                image_split,
+                256,
+                zoom,
+                rows,
+                cols,
+                extension,
+                self.application.settings['static_path']
+            )
+
+        # it's important to know how the thumbnail needs to be generated
+        # and it's important to do the thumbnail soon since otherwise
+        # it might severly delay the home page where the thumbnail is shown
+        q_high.enqueue(
+            make_thumbnail,
+            image_split,
+            100,
+            extension,
+            self.application.settings['static_path']
+        )
+
+        # pause for 2 seconds just to be sure enough images have been
+        # created before we start optimizing
+        ioloop_instance = tornado.ioloop.IOLoop.instance()
+        yield tornado.gen.Task(
+            ioloop_instance.add_timeout,
+            time.time() + 2
+        )
+
+        # once that's queued up we can start optimizing
+        for zoom in ranges:
+            q_low.enqueue(
+                optimize_images,
+                image_split,
+                zoom,
+                extension,
+                self.application.settings['static_path']
+            )
+
+        # lastly, optimize the thumbnail too
+        q_low.enqueue(
+            optimize_thumbnails,
+            image_split,
+            extension,
+            self.application.settings['static_path']
+        )
+
+        callback(had_to_give_up)
+
+    @tornado.gen.engine
+    def email_about_upload(self, fileid, email, callback):
+        base_url = (
+            '%s://%s' %
+            (self.request.protocol, self.request.host)
+        )
+        url = base_url + self.reverse_url('image', fileid)
+
+        q = Queue('default', connection=self.redis)
+        q.enqueue(
+            send_url,
+            url,
+            fileid,
+            email,
+            self.application.settings['debug']
+        )
+        callback()
+
+
 @route('/upload/download', 'upload_download')
-class DownloadUploadHandler(UploadHandler):
+class DownloadUploadHandler(UploadHandler, TileMakerMixin):
 
     @tornado.web.asynchronous
     @tornado.gen.engine
@@ -1011,20 +1179,8 @@ class DownloadUploadHandler(UploadHandler):
                 {'_id': document['_id']},
                 {'$set': data}
             )
-            width = size[0]
             area = size[0] * size[1]
             r = 1.0 * size[0] / size[1]
-
-            image_split = fileid[:1] + '/' + fileid[1:3] + '/' + fileid[3:]
-
-            if self.application.settings['debug']:
-                q_high = Queue('default', connection=self.redis)
-                q_default = Queue('default', connection=self.redis)
-                q_low = Queue('default', connection=self.redis)
-            else:
-                q_high = Queue('high', connection=self.redis)
-                q_default = Queue('default', connection=self.redis)
-                q_low = Queue('default', connection=self.redis)
 
             ranges = []
             _range = self.DEFAULT_RANGE_MIN
@@ -1045,116 +1201,38 @@ class DownloadUploadHandler(UploadHandler):
             ranges.insert(0, self.DEFAULT_ZOOM)
             extension = destination.split('.')[-1]
 
-            resize_jobs = {}
-            for zoom in ranges:
-                resize_jobs[zoom] = q_high.enqueue(
-                    make_resize,
-                    destination,
-                    zoom
-                )
-
-            for zoom in ranges:
-                # we can't add this job until the resize job is complete
-                ioloop_instance = tornado.ioloop.IOLoop.instance()
-                delay = 1
-                max_total_delay = 10
-                total_delay = 0
-                while True:
-                    print "\tsleeping for", delay, "seconds",
-                    print "(%s total delay)" % total_delay
-                    yield tornado.gen.Task(
-                        ioloop_instance.add_timeout,
-                        time.time() + delay
-                    )
-                    delay += 0.1
-                    total_delay += delay
-                    if resize_jobs[zoom].result is not None:
-                        del resize_jobs[zoom]
-                        break
-                    # The maximum time the AJAX post will wait is about
-                    # 60 seconds. So we don't want to max out the
-                    # total delay time possible.
-                    if total_delay > 5:
-                        logging.warning(
-                            "Had to give up on %d for %s" %
-                            (zoom, fileid)
-                        )
-                        break
-
-                #if resize_jobs.get(zoom):
-                #    # it's still going, we're going to have to do this
-                #    # some other time
-                #    continue
-
-                width = 256 * (2 ** zoom)
-                extra = 1
-                # the reason for the `extra` is because some tiles
-                # are going *outside* the original width and height
-                # of the original
-                # We increment the extra based on the width
-                #print "ZOOM", zoom
-                #print "\tWIDTH", width
-                #print "\tEXTRA", extra
-                #print "\tDIVISION", (width / 256)
-                cols = rows = extra + width / 256
-                q_default.enqueue(
-                    make_tiles,
-                    image_split,
-                    256,
-                    zoom,
-                    rows,
-                    cols,
-                    extension,
-                    self.application.settings['static_path']
-                )
-
-            # it's important to know how the thumbnail needs to be generated
-            # and it's important to do the thumbnail soon since otherwise
-            # it might severly delay the home page where the thumbnail is shown
-            q_high.enqueue(
-                make_thumbnail,
-                image_split,
-                100,
-                extension,
-                self.application.settings['static_path']
+            #tiles_made = yield tornado.gen.Task(
+            had_to_give_up = yield tornado.gen.Task(
+                self.prepare_all_tiles,
+                fileid,
+                destination,
+                ranges,
+                extension
             )
-
-            # pause for 2 seconds just to be sure enough images have been
-            # created before we start optimizing
-            ioloop_instance = tornado.ioloop.IOLoop.instance()
-            yield tornado.gen.Task(
-                ioloop_instance.add_timeout,
-                time.time() + 2
-            )
-
-            # once that's queued up we can start optimizing
-            for zoom in ranges:
-                q_low.enqueue(
-                    optimize_images,
-                    image_split,
-                    zoom,
-                    extension,
-                    self.application.settings['static_path']
-                )
-
-            # lastly, optimize the thumbnail too
-            q_low.enqueue(
-                optimize_thumbnails,
-                image_split,
-                'png',
-                self.application.settings['static_path']
-            )
-
             # clear the home page cache
             try:
                 self.clear_thumbnail_grid_cache()
             except:
                 logging.error('Unable to clear_thumbnail_grid_cache()',
                               exc_info=True)
+            if had_to_give_up:
+                logging.warning(
+                    "Had to give up when generating tiles %r"
+                    % fileid
+                )
+                self.write({
+                    'email': document['user']
+                })
+            else:
+                self.write({
+                    'url': self.reverse_url('image', fileid),
+                })
 
-            self.write({
-                'url': self.reverse_url('image', fileid),
-            })
+            yield tornado.gen.Task(
+                self.email_about_upload,
+                fileid,
+                document['user']
+            )
         else:
             try:
                 os.remove(destination)
@@ -1254,7 +1332,6 @@ class TileHandler(BaseHandler):
         )
         ioloop_instance = tornado.ioloop.IOLoop.instance()
         delay = 0.1
-        thumbnail_filepath = None
         while True:
             yield tornado.gen.Task(
                 ioloop_instance.add_timeout,
@@ -1281,7 +1358,9 @@ class TileHandler(BaseHandler):
                     _expires.strftime('%a, %d %b %Y %H:%M:%S GMT')
                 )
             self.write(open(save_filepath, 'rb').read())
-            priority = self.application.settings['debug'] and 'default' or 'low'
+            priority = (
+                self.application.settings['debug'] and 'default' or 'low'
+            )
             fileid = image.replace('/', '')
 
             lock_key = 'uploading:%s' % fileid

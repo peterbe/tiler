@@ -1,0 +1,58 @@
+{% extends "../base.html" %}
+
+{% block main %}
+<div class="row">
+  <div class="span12">
+    <h2>Images</h2>
+    <table class="table table-condensed">
+    <thead>
+      <tr>
+        <td>ID</td>
+        <td>Age</td>
+        <td>User</td>
+        <td>CDN</td>
+        <td>Featured</td>
+        <td>Size</td>
+        <td>Width</td>
+        <td>Ranges</td>
+        <td># tiles</td>
+      </tr>
+    </thead>
+    {% for image in images %}
+    <tbody>
+    <tr>
+      <td><a href="{{ reverse_url('image', image['fileid']) }}">{{ image['fileid'] }}</a></td>
+      <td><abbr title="{{ image['date'] }}">{% module TimeSince(image['date']) %}</abbr></td>
+      <td>{{ image['user'] }}</td>
+      <td>{% if image.get('cdn_domain') %}
+      <i class="icon-ok"></i>
+      {% else %}
+      <i class="icon-minus-sign"></i>
+      {% end %}
+      </td>
+      <td>{% if image.get('featured', True) %}
+      <i class="icon-ok"></i>
+      {% else %}
+      <i class="icon-minus-sign"></i>
+      {% end %}
+      </td>
+      <td>{% module ShowFileSize(image['size']) %}</td>
+      <td>
+          {% if image.get('width') and image.get('height') %}
+            {% module Thousands(image['width']) %} &times; {% module Thousands(image['height']) %}<br>
+          {% end %}
+      </td>
+      <td>{{ ','.join(str(int(x)) for x in image['ranges']) }}</td>
+      <td {% if image['too_few_tiles'] %}style="color:red"{% else %}style="color:green"{% end %}>
+        {{ image['found_tiles'] }}
+        /
+        {{ image['expected_tiles'] }}
+        <a href="{{ reverse_url('admin_tiles', image['fileid']) }}">?</a>
+      </td>
+    </tr>
+    </tbody>
+    {% end %}
+    </table>
+  </div>
+</div>
+{% end %}

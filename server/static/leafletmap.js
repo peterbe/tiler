@@ -1,4 +1,5 @@
 var Hashing = (function() {
+  var _hashing_on = false;
 
   var DEFAULT_LAT = 70.0, DEFAULT_LNG = 0;
 
@@ -31,18 +32,18 @@ var Hashing = (function() {
        if (args) {
          map.setView([args[1], args[2]], args[0]);
        } else {
+         _hashing_on = true;
          // Default!
          map.setView([DEFAULT_LAT, DEFAULT_LNG], default_zoom);
-         //setHash(default_zoom, DEFAULT_LAT, DEFAULT_LNG);
+         setHash(default_zoom, DEFAULT_LAT, DEFAULT_LNG);
        }
 
        // set up the event
-       /*
        map.on('move', function(event) {
+         if (_hashing_on) return;
          var c = event.target.getCenter();
          setHash(event.target.getZoom(), c.lat, c.lng);
        });
-       */
 
        $('a.permalink').on('mouseover', function() {
          $(this).attr('href', getHashByMap(map));

@@ -13,6 +13,7 @@ from rq import Queue
 import motor
 import settings
 import handlers
+import admin_handlers
 
 
 define("debug", default=False, help="run in debug mode", type=bool)

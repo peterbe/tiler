@@ -4,7 +4,7 @@ import os
 import stat
 from PIL import Image
 import logging
-from resizer import make_resize
+from resizer import make_resize, resize_image
 
 
 def mkdir(newdir):
@@ -60,7 +60,8 @@ def scale_and_crop(path, requested_size, row, col, zoom, image):
             print "\ttook", round(t1 - t0, 2), "seconds"
             time.sleep(1)  # time to save it
 
-        if os.path.isfile(_resized_file) and os.stat(_resized_file)[stat.ST_SIZE]:
+        if (os.path.isfile(_resized_file) and
+            os.stat(_resized_file)[stat.ST_SIZE]):
             print "REUSING", _resized_file
             logging.debug('REUSING %s' % _resized_file)
             im = Image.open(_resized_file)
@@ -97,8 +98,7 @@ def make_thumbnail(*args, **kwargs):  # wrapper on _make_thumbnail()
     t0 = time.time()
     result = _make_thumbnail(*args, **kwargs)
     t1 = time.time()
-    #logging.warning("%s seconds to make thumbnail for %s" % (t1-t0, args[0]))
-    print "%s seconds to make thumbnail for %s" % (t1-t0, args[0])
+    print "%s seconds to make thumbnail for %s" % (t1 - t0, args[0])
     return result
 
 
@@ -139,6 +139,7 @@ def _make_thumbnail(image, width, extension, static_path,
         thumbnail_image = _resize_thumbnail(
             path,
             width,
+            save_filepath,
         )
         if thumbnail_image is not None:
             #print "Created", save_filepath
@@ -146,19 +147,20 @@ def _make_thumbnail(image, width, extension, static_path,
 
     return save_filepath
 
-def _resize_thumbnail(path, width):
+
+def _resize_thumbnail(path, width, save_filepath):
     t0 = time.time()
     im = Image.open(path)
     x, y = [float(v) for v in im.size]
     xr, yr = [float(v) for v in (width, width)]
     r = min(xr / x, yr / y)
     w, h = int(round(x * r)), int(round(y * r))
-    im = im.resize((w, h),
-                   resample=Image.ANTIALIAS)
+    resize_image(path, w, save_filepath)
+    #im = im.resize((w, h),
+    #               resample=Image.ANTIALIAS)
     t1 = time.time()
     print "Took", round(t1 - t0, 2), "seconds to resize thumbnail", path
-    return im
-
+    return Image.open(save_filepath)
 
 
 def make_tile(image, size, zoom, row, col, extension, static_path):
