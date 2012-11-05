@@ -418,7 +418,7 @@ class ImageHandler(BaseHandler):
                     fileid,
                     self.application.settings['static_path']
                 )
-                self.redis.setex(lock_key, 1, 60 * 60)
+                self.redis.setex(lock_key, time.time(), 60 * 60)
                 priority = (
                     self.application.settings['debug'] and 'default' or 'low'
                 )
@@ -1012,7 +1012,7 @@ class TileMakerMixin(object):
 
         for zoom in ranges:
             print "Resizes:"
-            pprint(dict((k, v.result) for (k,v) in resize_jobs.items()))
+            pprint(dict((k, v.result) for (k, v) in resize_jobs.items()))
             # we can't add this job until the resize job is complete
             ioloop_instance = tornado.ioloop.IOLoop.instance()
             delay = 0.5

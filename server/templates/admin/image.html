@@ -8,13 +8,18 @@
 
   <div class="span12">
     <h2>Image <a href="{{ reverse_url('image', image['fileid']) }}">{{ request.protocol }}://{{ request.host }}{{ reverse_url('image', image['fileid']) }}</a></h2>
-    <dl>
+    <dl         class="dl-horizontal">
       <dt>Tiles:</dt>
-      <dd {% if image['too_few_tiles'] %}style="color:red"{% else %}style="color:green"{% end %}>
+      <dd>
+        <a href="{{ reverse_url('admin_tiles', image['fileid']) }}" {% if image['too_few_tiles'] %}style="color:red"{% else %}style="color:green"{% end %}>
         {{ image['found_tiles'] }}
         /
-        {{ image['expected_tiles'] }}
-        <a href="{{ reverse_url('admin_tiles', image['fileid']) }}">tiles</a>
+        {{ image['expected_tiles'] }}</a>
+        {% if image['too_few_tiles'] %}
+        <form action="{{ reverse_url('admin_prepare_all_tiles', image['fileid']) }}" method="post">
+        <button class="btn btn-mini" type="submit">re-submit</button>
+        </form>
+        {% end %}
       </dd>
 
       <dt>Age:</dt>
@@ -35,7 +40,14 @@
         <button class="btn btn-mini" type="submit">unset</button>
         </form>
         {% else %}
-        --
+          {% if uploading_locked %}
+            locked: <code>{{ uploading_locked }}</code>
+            <form action="{{ reverse_url('admin_unlock_awsupload', image['fileid']) }}" method="post">
+            <button class="btn btn-mini" type="submit">unlock</button>
+            </form>
+          {% else %}
+            view to start
+          {% end %}
         {% end %}
       </dd>
 
@@ -76,6 +88,8 @@
       <dd>
         {% if image.get('title') %}
         <blockquote>{{ image['title'] }}</blockquote>
+        {% else %}
+        <i>none</i>
         {% end %}
       </dd>
 
@@ -83,6 +97,8 @@
       <dd>
         {% if image.get('description') %}
         <blockquote>{{ image['description'] }}</blockquote>
+        {% else %}
+        <i>none</i>
         {% end %}
       </dd>
 

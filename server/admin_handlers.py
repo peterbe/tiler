@@ -172,12 +172,15 @@ class AdminImageHandler(AdminBaseHandler):
         self.attach_tiles_info(image)
         self.attach_hits_info(image)
 
+        lock_key = 'uploading:%s' % fileid
+        uploading_locked = self.redis.get(lock_key)
+
         data = {
             'image': image,
+            'uploading_locked': uploading_locked,
         }
 
         self.render('admin/image.html', **data)
-
 
 
 @route('/admin/(?P<fileid>\w{9})/tiles/', name='admin_tiles')
@@ -360,7 +363,6 @@ class AdminUnsetCDNHandler(AdminBaseHandler):
         if not image:
             raise tornado.web.HTTPError(404, "File not found")
 
-        featured = image.get('featured', True)
         yield motor.Op(
             self.db.images.update,
             {'_id': image['_id']},
@@ -379,6 +381,30 @@ class AdminUnsetCDNHandler(AdminBaseHandler):
             os.remove(upload_log)
         else:
             print "couldn't remove", upload_log
+
+        url = self.reverse_url('admin_image', fileid)
+        self.redirect(url)
+
+
+@route('/admin/(?P<fileid>\w{9})/tiles/unlock-aws-upload/',
+       name='admin_unlock_awsupload')
+class AdminUnlockAWSUploadHandler(AdminBaseHandler):
+
+    def check_xsrf_cookie(self):
+        pass
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def post(self, fileid):
+        image = yield motor.Op(
+            self.db.images.find_one,
+            {'fileid': fileid}
+        )
+        if not image:
+            raise tornado.web.HTTPError(404, "File not found")
+
+        lock_key = 'uploading:%s' % fileid
+        self.redis.delete(lock_key)
 
         url = self.reverse_url('admin_image', fileid)
         self.redirect(url)
