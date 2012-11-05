@@ -1,3 +1,4 @@
+import urlparse
 import datetime
 import tornado.web
 import tornado.escape
@@ -94,3 +95,13 @@ class Truncate(tornado.web.UIModule):
                     tornado.escape.xhtml_escape(text[:max_length]))
         else:
             return tornado.escape.xhtml_escape(text)
+
+
+class ShortenURL(tornado.web.UIModule):
+
+    def render(self, url, just_domain=False):
+        if just_domain:
+            parsed = urlparse.urlparse(url)
+            return parsed.netloc
+
+        return url

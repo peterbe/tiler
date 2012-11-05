@@ -1,4 +1,6 @@
+import datetime
 import urllib
+import time
 import os
 import tornado.web
 import tornado.gen
@@ -61,6 +63,30 @@ class AdminBaseHandler(BaseHandler):
             count += (cols * rows)
         return count
 
+    def attach_tiles_info(self, image):
+        image['found_tiles'] = self._count_tiles(image)
+        _ranges = image.get('ranges')
+        if _ranges:
+            _ranges = [int(x) for x in _ranges]
+        image['ranges'] = (
+            _ranges or self._calculate_ranges(image)
+        )
+        image['expected_tiles'] = self._expected_tiles(image)
+        image['too_few_tiles'] = (
+            image['found_tiles'] < image['expected_tiles']
+        )
+
+    def attach_hits_info(self, image):
+        _now = datetime.datetime.utcnow()
+        fileid = image['fileid']
+        hit_key = 'hits:%s' % fileid
+        hit_month_key = (
+            'hits:%s:%s:%s' %
+            (_now.year, _now.month, fileid)
+        )
+        image['hits'] = self.redis.get(hit_key)
+        image['hits_this_month'] = self.redis.get(hit_month_key)
+
 
 @route('/admin/', name='admin_home')
 class AdminHomeHandler(AdminBaseHandler):
@@ -107,14 +133,7 @@ class AdminHomeHandler(AdminBaseHandler):
                 image['width'] = data['width']
                 image['height'] = data['height']
 
-            image['found_tiles'] = self._count_tiles(image)
-            image['ranges'] = (
-                image.get('ranges') or self._calculate_ranges(image)
-            )
-            image['expected_tiles'] = self._expected_tiles(image)
-            image['too_few_tiles'] = (
-                image['found_tiles'] < image['expected_tiles']
-            )
+            self.attach_tiles_info(image)
             images.append(image)
             image = yield motor.Op(cursor.next_object)
 
@@ -123,6 +142,30 @@ class AdminHomeHandler(AdminBaseHandler):
         data['total_count'] = total_count
 
         self.render('admin/home.html', **data)
+
+
+@route('/admin/(?P<fileid>\w{9})/', name='admin_image')
+class AdminImageHandler(AdminBaseHandler):
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def get(self, fileid):
+        image = yield motor.Op(
+            self.db.images.find_one,
+            {'fileid': fileid}
+        )
+        if not image:
+            raise tornado.web.HTTPError(404, "File not found")
+
+        self.attach_tiles_info(image)
+        self.attach_hits_info(image)
+
+        data = {
+            'image': image,
+        }
+
+        self.render('admin/image.html', **data)
+
 
 
 @route('/admin/(?P<fileid>\w{9})/tiles/', name='admin_tiles')
@@ -154,7 +197,10 @@ class AdminTilesHandler(AdminBaseHandler):
             raise NotImplementedError
 
         image['found_tiles'] = self._count_tiles(image)
-        image['ranges'] = image.get('ranges') or self._calculate_ranges(image)
+        _ranges = image.get('ranges')
+        if _ranges:
+            _ranges = [int(x) for x in _ranges]
+        image['ranges'] = _ranges or self._calculate_ranges(image)
         image['expected_tiles'] = self._expected_tiles(image)
         data = {
             'image_split': image_split,
@@ -216,9 +262,10 @@ class AdminPrepareAllTilesHandler(AdminBaseHandler, TileMakerMixin):
 
         count_before = self._count_tiles(image)
 
-        ranges = self._calculate_ranges(image)
-        ranges.remove(self.DEFAULT_ZOOM)
-        ranges.insert(0, self.DEFAULT_ZOOM)
+        _ranges = image.get('ranges')
+        if _ranges:
+            _ranges = [int(x) for x in _ranges]
+        ranges = _ranges or self._calculate_ranges(image)
 
         extension = destination.split('.')[-1]
 
@@ -238,3 +285,72 @@ class AdminPrepareAllTilesHandler(AdminBaseHandler, TileMakerMixin):
             data['had_to_give_up'] = 'true'
 
         self.redirect(url + '?' + urllib.urlencode(data))
+
+
+@route('/admin/(?P<fileid>\w{9})/tiles/featured/',
+       name='admin_toggle_featured')
+class AdminToggleFeaturedHandler(AdminBaseHandler):
+
+    def check_xsrf_cookie(self):
+        pass
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def post(self, fileid):
+        image = yield motor.Op(
+            self.db.images.find_one,
+            {'fileid': fileid}
+        )
+        if not image:
+            raise tornado.web.HTTPError(404, "File not found")
+
+        featured = image.get('featured', True)
+        yield motor.Op(
+            self.db.images.update,
+            {'_id': image['_id']},
+            {'$set': {'featured': not featured}}
+        )
+
+        url = self.reverse_url('admin_image', fileid)
+        self.redirect(url)
+
+
+@route('/admin/(?P<fileid>\w{9})/tiles/unset-cdn_domain/',
+       name='admin_unset_cdn')
+class AdminUnsetCDNHandler(AdminBaseHandler):
+
+    def check_xsrf_cookie(self):
+        pass
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def post(self, fileid):
+        image = yield motor.Op(
+            self.db.images.find_one,
+            {'fileid': fileid}
+        )
+        if not image:
+            raise tornado.web.HTTPError(404, "File not found")
+
+        featured = image.get('featured', True)
+        yield motor.Op(
+            self.db.images.update,
+            {'_id': image['_id']},
+            {'$unset': {'cdn_domain': 1}}
+        )
+
+        lock_key = 'uploading:%s' % fileid
+        # locking it from aws upload for 1 hour
+        self.redis.setex(lock_key, time.time(), 60 * 60)
+
+        upload_log = os.path.join(
+            self.application.settings['static_path'],
+            'upload.%s.txt' % fileid
+        )
+        if os.path.isfile(upload_log):
+            os.remove(upload_log)
+        else:
+            print "couldn't remove", upload_log
+
+        url = self.reverse_url('admin_image', fileid)
+        self.redirect(url)

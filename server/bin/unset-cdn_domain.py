@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os
+import time
 import motor
 import shutil
 from pprint import pprint
@@ -29,7 +30,7 @@ def run(*fileids):
             yield motor.Op(
                 db.images.update,
                 {'_id': document['_id']},
-                {'$set': {'cdn_domain': None}}
+                {'$unset': {'cdn_domain': 1}}
             )
             metadata_key = 'metadata:%s' % document['fileid']
             if _redis.get(metadata_key):
@@ -37,7 +38,7 @@ def run(*fileids):
                 _redis.delete(metadata_key)
             lock_key = 'uploading:%s' % document['fileid']
             # locking it from aws upload for 1 hour
-            _redis.setex(lock_key, 1, 60 * 60)
+            _redis.setex(lock_key, time.time(), 60 * 60)
 
             upload_log = os.path.join(
                 ROOT,

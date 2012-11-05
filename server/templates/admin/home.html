@@ -21,7 +21,10 @@
     {% for image in images %}
     <tbody>
     <tr>
-      <td><a href="{{ reverse_url('image', image['fileid']) }}">{{ image['fileid'] }}</a></td>
+      <td>
+        <a href="{{ reverse_url('admin_image', image['fileid']) }}">{{ image['fileid'] }}</a>
+        <a href="{{ reverse_url('image', image['fileid']) }}">v</a>
+      </td>
       <td><abbr title="{{ image['date'] }}">{% module TimeSince(image['date']) %}</abbr></td>
       <td>{{ image['user'] }}</td>
       <td>{% if image.get('cdn_domain') %}

@@ -11,7 +11,11 @@
         <button type="submit">Resubmit to prepare all tiles</button>
       </form>
     </div>
-    <h2>Image <a href="{{ reverse_url('image', image['fileid']) }}">{{ image['fileid'] }}</a></h2>
+    <h2>
+      Image
+      <a href="{{ reverse_url('admin_image', image['fileid']) }}">{{ image['fileid'] }}</a>
+      <a href="{{ reverse_url('image', image['fileid']) }}">view</a>
+    </h2>
     <h3># Found tiles: {{ image['found_tiles'] }}
     {% if found_tiles_before is not None %}
     (previous: {{ found_tiles_before }})
@@ -41,11 +45,4 @@
     </table>
   </div>
 </div>
-{% end %}
-
-
-{% block extra_js %}
-<script type="text/javascript">
-</script>
-
 {% end %}

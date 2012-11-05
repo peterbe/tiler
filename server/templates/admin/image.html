@@ -1,0 +1,93 @@
+{% extends "admin_base.html" %}
+
+{% block page_title %}{{ image['fileid'] }}{% end %}
+
+{% block main %}
+
+<div class="row">
+
+  <div class="span12">
+    <h2>Image <a href="{{ reverse_url('image', image['fileid']) }}">{{ request.protocol }}://{{ request.host }}{{ reverse_url('image', image['fileid']) }}</a></h2>
+    <dl>
+      <dt>Tiles:</dt>
+      <dd {% if image['too_few_tiles'] %}style="color:red"{% else %}style="color:green"{% end %}>
+        {{ image['found_tiles'] }}
+        /
+        {{ image['expected_tiles'] }}
+        <a href="{{ reverse_url('admin_tiles', image['fileid']) }}">tiles</a>
+      </dd>
+
+      <dt>Age:</dt>
+      <dd>
+        <abbr title="{{ image['date'] }}">{% module TimeSince(image['date']) %}</abbr>
+      </dd>
+
+      <dt>User:</dt>
+      <dd>
+        <a href="mailto:{{ image['user'] }}">{{ image['user'] }}</a>
+      </dd>
+
+      <dt>CDN:</dt>
+      <dd>
+        {% if image.get('cdn_domain') %}
+        <code>{{ image['cdn_domain'] }}</code>
+        <form action="{{ reverse_url('admin_unset_cdn', image['fileid']) }}" method="post">
+        <button class="btn btn-mini" type="submit">unset</button>
+        </form>
+        {% else %}
+        --
+        {% end %}
+      </dd>
+
+      <dt>Featured:</dt>
+      <dd {% if image.get('featured', True) %}style="color:green"{% else %}style="color:red"{% end %}>
+        {{ image.get('featured', True) and 'Yes' or 'No' }}
+        <form action="{{ reverse_url('admin_toggle_featured', image['fileid']) }}" method="post">
+        <button class="btn btn-mini" type="submit">toggle</button>
+        </form>
+      </dd>
+
+      <dt>Size:</dt>
+      <dd>
+          {% if image.get('width') and image.get('height') %}
+            {% module Thousands(image['width']) %} &times; {% module Thousands(image['height']) %}<br>
+          {% end %}
+      </dd>
+      <dd>{% module ShowFileSize(image['size']) %}</dd>
+
+      <dt>Ranges:</dt>
+      <dd>
+        {{ ', '.join(str(int(x)) for x in image['ranges']) }}
+      </dd>
+
+      <dt>Hits:</dt>
+      <dd>
+        {{ image['hits'] }}
+        ({{ image['hits_this_month'] }} this month)
+      </dd>
+
+      <dt>Source:</dt>
+      <dd>
+        <a href="{{ image['source'] }}" title="{{ image['source'] }}"
+        >{% module ShortenURL(image['source'], just_domain=True) %}</a>
+      </dd>
+
+      <dt>Title:</dt>
+      <dd>
+        {% if image.get('title') %}
+        <blockquote>{{ image['title'] }}</blockquote>
+        {% end %}
+      </dd>
+
+      <dt>Description:</dt>
+      <dd>
+        {% if image.get('description') %}
+        <blockquote>{{ image['description'] }}</blockquote>
+        {% end %}
+      </dd>
+
+
+    </dl>
+  </div>
+</div>
+{% end %}
