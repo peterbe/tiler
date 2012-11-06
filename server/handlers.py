@@ -508,6 +508,15 @@ class ImageWeightCounterHandler(BaseHandler):
                 bytes += os.stat(path)[stat.ST_SIZE]
             except OSError:
                 pass
+        if bytes:
+            # try self.redis.hget('bytes_served', fileid)
+            # or self.redis.hgetall('bytes_served')
+            try:
+                self.redis.hincrby('bytes_served', fileid, bytes)
+            except:
+                if self.application.settings['debug']:
+                    raise
+
         self.write({'bytes': bytes})
 
 
@@ -1181,6 +1190,12 @@ class DownloadUploadHandler(UploadHandler, TileMakerMixin):
             )
             area = size[0] * size[1]
             r = 1.0 * size[0] / size[1]
+
+            try:
+                self.redis.incr('bytes_downloaded', amount=document['size'])
+            except:
+                if self.application.settings['debug']:
+                    raise
 
             ranges = []
             _range = self.DEFAULT_RANGE_MIN

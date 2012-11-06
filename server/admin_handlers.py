@@ -173,6 +173,7 @@ class AdminHomeHandler(AdminBaseHandler):
 
         data['images'] = images
         data['total_count'] = total_count
+        data['bytes_downloaded'] = self.redis.get('bytes_downloaded')
 
         self.render('admin/home.html', **data)
 

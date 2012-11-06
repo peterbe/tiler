@@ -4,6 +4,9 @@
 <div class="row">
   <div class="span12">
     <h2>{{ total_count }} Images</h2>
+    {% if bytes_downloaded %}
+    <h4>Total downloaded data: {% module ShowFileSize(int(bytes_downloaded)) %}</h4>
+    {% end %}
     <table class="table table-condensed">
     <thead>
       <tr>
