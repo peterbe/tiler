@@ -7,3 +7,4 @@ rq
 greenlet
 git+https://github.com/ajdavis/mongo-python-driver.git@motor
 cssmin
+boto
