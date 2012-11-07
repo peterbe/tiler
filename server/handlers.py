@@ -1085,8 +1085,9 @@ class TileMakerMixin(object):
             if total_delay > 50:
                 # if at least 2 jobs had been done,
                 # it means the resizing and and tiles were made for
-                # the default zoom level
-                had_to_give_up = jobs_done >= 2
+                # the default zoom level.
+                # and it's a healthy sign it managed to do one more
+                had_to_give_up = jobs_done > 2
                 break
 
         callback(had_to_give_up)
