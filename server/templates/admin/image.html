@@ -47,6 +47,9 @@
             </form>
           {% else %}
             view to start
+            <form action="{{ reverse_url('admin_lock_awsupload', image['fileid']) }}" method="post">
+            <button class="btn btn-mini" type="submit">lock</button>
+            </form>
           {% end %}
         {% end %}
       </dd>

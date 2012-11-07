@@ -28,8 +28,8 @@ def mkdir(newdir):
 _RESIZES = {}
 _TIMESTAMPS = {}
 
-
-def scale_and_crop(path, requested_size, row, col, zoom, image):
+def scale_and_crop(path, requested_size, row, col, zoom, image,
+                   cache_image_open=False):
     im = Image.open(path)
     x, y = [float(v) for v in im.size]
     xr, yr = [float(v) for v in requested_size]
@@ -41,54 +41,43 @@ def scale_and_crop(path, requested_size, row, col, zoom, image):
     _cache_key = '%s-%s-%s' % (image, zoom, w)
     pathname, extension = os.path.splitext(path)
 
+    width = 256 * (2 ** zoom)
     _resized_file = path.replace(
         extension,
-        '-%s-%s%s' % (zoom, w, extension)
+        '-%s-%s%s' % (zoom, width, extension)
     )
 
-    already = _RESIZES.get(_cache_key)
-    if already:
-        im = already
-    else:
-        if not os.path.isfile(_resized_file):
-            # resizer.make_resize() uses `convert` so it's much more memory
-            # efficient
-            print "Having to use make_resize()"
-            t0 = time.time()
-            make_resize(path, zoom)
-            t1 = time.time()
-            print "\ttook", round(t1 - t0, 2), "seconds"
-            time.sleep(1)  # time to save it
+    if not os.path.isfile(_resized_file):
+        # resizer.make_resize() uses `convert` so it's much more memory
+        # efficient
+        print "Having to use make_resize()"
+        t0 = time.time()
+        _resized_file = make_resize(path, zoom)
+        t1 = time.time()
+        print "\ttook", round(t1 - t0, 2), "seconds"
+        time.sleep(0.5)  # time to save it
 
-        if (os.path.isfile(_resized_file) and
-            os.stat(_resized_file)[stat.ST_SIZE]):
-            print "REUSING", _resized_file
-            logging.debug('REUSING %s' % _resized_file)
-            im = Image.open(_resized_file)
-            #print "Assert?", (im.size, (w,h))
+
+    if cache_image_open:
+        if _cache_key in _RESIZES:
+            im = _RESIZES[_cache_key]
         else:
-            print "Need to resize... FAIL!"
-            t0 = time.time()
+            im = Image.open(_resized_file)
+            print "Having to use Image.open()"
+            _RESIZES[_cache_key] = im
+            _TIMESTAMPS[_cache_key] = time.time()
 
-            im = im.resize((w, h),
-                           resample=Image.ANTIALIAS)
-            t1 = time.time()
-            logging.debug("SAVE RESIZED TO %s" % _resized_file)
-            im.save(_resized_file)
-            print "SAVE RESIZED TO", _resized_file
-            print "\t", round(t1 - t0, 2), "seconds to resize"
-
-    _RESIZES[_cache_key] = im
-    _TIMESTAMPS[_cache_key] = time.time()
-
-    # to avoid memory bloat of `_RESIZES` getting too large, instead use the
-    # `_TIMESTAMPS` dict to keep track of which Image instances are getting old
-    _now = time.time()
-    for key, timestamp in _TIMESTAMPS.items():
-        age = _now - timestamp
-        if age > 10:
-            del _TIMESTAMPS[key]
-            del _RESIZES[key]
+        # to avoid memory bloat of `_RESIZES` getting too large, instead use the
+        # `_TIMESTAMPS` dict to keep track of which Image instances are getting old
+        _now = time.time()
+        for key, timestamp in _TIMESTAMPS.items():
+            age = _now - timestamp
+            if age > 10:
+                print "CLEAR", key
+                del _TIMESTAMPS[key]
+                del _RESIZES[key]
+    else:
+        im = Image.open(_resized_file)
 
     # convert (width, height, x, y) into PIL crop box
     return im.crop(box)
@@ -115,16 +104,29 @@ def _make_thumbnail(image, width, extension, static_path,
     if not os.path.isdir(save_root):
         os.mkdir(save_root)
 
-    path = os.path.join(root, image)
-    for i in ('.png', '.jpg'):
-        path = os.path.join(root, image + i)
-        if os.path.isfile(path):
-            break
-    else:
+    # in the uploads directory we're going to use the smallest file we can find
+    # to make the thumbnail out of
+
+    _filename = os.path.split(image)[-1]
+    _root = os.path.join(*os.path.split(image)[:-1])
+    root = os.path.join(root, _root)
+    candidates = [
+        os.path.join(root, x)
+        for x in os.listdir(root)
+        if _filename in x
+    ]
+    if not candidates:
         if raise_error_if_not_found:
             raise IOError(image)
         else:
             return
+    candidates = [
+        (os.stat(x)[stat.ST_SIZE], x)
+        for x in candidates
+    ]
+    candidates.sort()
+    # smallest comes first
+    path = candidates[0][1]
 
     save_filepath = save_root
     save_filepath = os.path.join(save_filepath, image)
@@ -163,7 +165,8 @@ def _resize_thumbnail(path, width, save_filepath):
     return Image.open(save_filepath)
 
 
-def make_tile(image, size, zoom, row, col, extension, static_path):
+def make_tile(image, size, zoom, row, col, extension, static_path,
+              cache_image_open=False):
 
     size = int(size)
     zoom = int(zoom)
@@ -202,8 +205,7 @@ def make_tile(image, size, zoom, row, col, extension, static_path):
                 # because this function is called concurrently by the queue
                 # workers this is not thread safe so it might raise an OSError
                 # even though the file already exists
-                from time import sleep
-                sleep(0.1)
+                time.sleep(0.1)
                 if not os.path.isdir(save_filepath):
                     raise
     save_filepath = os.path.join(
@@ -219,6 +221,7 @@ def make_tile(image, size, zoom, row, col, extension, static_path):
             row, col,
             zoom=zoom,
             image=image,
+            cache_image_open=cache_image_open
         )
         if cropped_image is not None:
             #print "Created", save_filepath
@@ -232,7 +235,8 @@ def make_tiles(image, size, zoom, rows, cols, extension, static_path):
     # instance and re-use it for every row and every column.
     for row in range(rows + 1):
         for col in range(cols + 1):
-            make_tile(image, size, zoom, row, col, extension, static_path)
+            make_tile(image, size, zoom, row, col, extension, static_path,
+                      cache_image_open=True)
 
 
 def delete_image(image, static_path):

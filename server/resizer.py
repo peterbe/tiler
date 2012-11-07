@@ -6,7 +6,16 @@ import subprocess
 
 
 def resize_image(path, width, save_path):
-    cmd = 'convert %s -resize %d %s' % (path, width, save_path)
+    # by default, `-sample` is quicker when then picture is large
+    _resize_tool = 'sample'
+    if width < 1000:
+        # only use `-resize` if it's a small picture
+        _resize_tool = 'resize'
+    cmd = (
+        'convert %s -%s %d %s' %
+        (path, _resize_tool, width, save_path)
+    )
+    print "CMD", repr(cmd)
     process = subprocess.Popen(
         cmd,
         shell=True,
@@ -36,8 +45,9 @@ def make_resize(path, zoom):
     return resized
 
 
-def _resize(path, zoom):
+def _resize(path, zoom, extra=0):
     width = 256 * (2 ** zoom)
+
     start, ext = os.path.splitext(path)
     save_path = path.replace(
         ext,

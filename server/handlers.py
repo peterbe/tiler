@@ -232,7 +232,13 @@ class HomeHandler(BaseHandler, ThumbnailGridRendererMixin):
             'yours': False
         }
 
-        search = {}
+        then = (
+            datetime.datetime.utcnow() -
+            datetime.timedelta(seconds=60 * 5)
+        )
+        search = {
+            'date': {'$lt': then}
+        }
         if self.get_argument('user', None):
             search['user'] = self.get_argument('user')
             data['yours'] = True
@@ -241,7 +247,10 @@ class HomeHandler(BaseHandler, ThumbnailGridRendererMixin):
         total_count = yield motor.Op(self.db.images.find(search).count)
 
         page_size = 12
-        _search_values = search.values()
+        _search_values = [
+            v for (k, v) in search.items()
+            if k != 'date'
+        ]
         cache_key = (
             'thumbnail_grid:%s:%s:%s' %
             (page, page_size, _search_values)
@@ -419,10 +428,7 @@ class ImageHandler(BaseHandler):
                     self.application.settings['static_path']
                 )
                 self.redis.setex(lock_key, time.time(), 60 * 60)
-                priority = (
-                    self.application.settings['debug'] and 'default' or 'low'
-                )
-                q = Queue(priority, connection=self.redis)
+                q = Queue(connection=self.redis)
                 logging.info("About to upload %s tiles" % _no_tiles)
                 # bulk the queue workers with 100 each
                 for i in range(_no_tiles / 100 + 1):
@@ -841,8 +847,7 @@ class ImageDeleteHandler(BaseHandler):
         metadata_key = 'metadata:%s' % fileid
         self.redis.delete(metadata_key)
 
-        priority = self.application.settings['debug'] and 'default' or 'low'
-        q = Queue(priority, connection=self.redis)
+        q = Queue(connection=self.redis)
         image_split = (
             fileid[:1] +
             '/' +
@@ -997,76 +1002,26 @@ def my_streaming_callback(destination_file, data):
 class TileMakerMixin(object):
 
     @tornado.gen.engine
-    def prepare_all_tiles(self, fileid, destination, ranges, extension,
+    def prepare_all_tiles(self, fileid, original, ranges, extension,
                           callback):
         had_to_give_up = False
         image_split = fileid[:1] + '/' + fileid[1:3] + '/' + fileid[3:]
 
-        if self.application.settings['debug']:
-            q_high = Queue('default', connection=self.redis)
-            q_default = Queue('default', connection=self.redis)
-            q_low = Queue('default', connection=self.redis)
-        else:
-            q_high = Queue('high', connection=self.redis)
-            q_default = Queue('default', connection=self.redis)
-            q_low = Queue('default', connection=self.redis)
+        q = Queue(connection=self.redis)
+        jobs = []
 
-        resize_jobs = {}
         for zoom in ranges:
-            resize_jobs[zoom] = q_high.enqueue(
+            jobs.append(q.enqueue(
                 make_resize,
-                destination,
+                original,
                 zoom
-            )
+            ))
 
-        for zoom in ranges:
-            print "Resizes:"
-            pprint(dict((k, v.result) for (k, v) in resize_jobs.items()))
-            # we can't add this job until the resize job is complete
-            ioloop_instance = tornado.ioloop.IOLoop.instance()
-            delay = 0.5
-            max_total_delay = 10
-            total_delay = 0
-            while True:
-                print "\tsleeping for", delay, "seconds",
-                print "(%s total delay)" % total_delay
-                yield tornado.gen.Task(
-                    ioloop_instance.add_timeout,
-                    time.time() + delay
-                )
-                delay += 0.1
-                total_delay += delay
-                if resize_jobs[zoom].result is not None:
-                    del resize_jobs[zoom]
-                    break
-                # The maximum time the AJAX post will wait is about
-                # 60 seconds. So we don't want to max out the
-                # total delay time possible.
-                if total_delay > max_total_delay:
-                    logging.warning(
-                        "Had to give up on %d for %s" %
-                        (zoom, fileid)
-                    )
-                    had_to_give_up = True
-                    break
-
-            #if resize_jobs.get(zoom):
-            #    # it's still going, we're going to have to do this
-            #    # some other time
-            #    continue
-
-            width = 256 * (2 ** zoom)
             extra = self.get_extra_rows_cols(zoom)
-            # the reason for the `extra` is because some tiles
-            # are going *outside* the original width and height
-            # of the original
-            # We increment the extra based on the width
-            #print "ZOOM", zoom
-            #print "\tWIDTH", width
-            #print "\tEXTRA", extra
-            #print "\tDIVISION", (width / 256)
+            width = 256 * (2 ** zoom)
             cols = rows = extra + width / 256
-            q_default.enqueue(
+
+            jobs.append(q.enqueue(
                 make_tiles,
                 image_split,
                 256,
@@ -1074,45 +1029,65 @@ class TileMakerMixin(object):
                 rows,
                 cols,
                 extension,
-                self.application.settings['static_path']
-            )
+                self.application.settings['static_path'],
+            ))
 
-        # it's important to know how the thumbnail needs to be generated
-        # and it's important to do the thumbnail soon since otherwise
-        # it might severly delay the home page where the thumbnail is shown
-        q_high.enqueue(
+        jobs.append(q.enqueue(
             make_thumbnail,
             image_split,
             100,
             extension,
-            self.application.settings['static_path']
-        )
+            self.application.settings['static_path'],
+        ))
 
-        # pause for 2 seconds just to be sure enough images have been
-        # created before we start optimizing
-        ioloop_instance = tornado.ioloop.IOLoop.instance()
-        yield tornado.gen.Task(
-            ioloop_instance.add_timeout,
-            time.time() + 2
-        )
-
-        # once that's queued up we can start optimizing
         for zoom in ranges:
-            q_low.enqueue(
+            jobs.append(q.enqueue(
                 optimize_images,
                 image_split,
                 zoom,
                 extension,
-                self.application.settings['static_path']
-            )
+                self.application.settings['static_path'],
+            ))
 
-        # lastly, optimize the thumbnail too
-        q_low.enqueue(
+        jobs.append(q.enqueue(
             optimize_thumbnails,
             image_split,
             extension,
-            self.application.settings['static_path']
-        )
+            self.application.settings['static_path'],
+        ))
+
+        lock_key = 'uploading:%s' % fileid
+        self.redis.setex(lock_key, time.time(), 60 * 60)
+
+        ioloop_instance = tornado.ioloop.IOLoop.instance()
+        delay = 1
+        total_delay = 0
+        while True:
+            print "TOTAL DELAY", total_delay
+            yield tornado.gen.Task(
+                ioloop_instance.add_timeout,
+                time.time() + delay
+            )
+            delay += 5
+            total_delay += delay
+
+            jobs_done = len([
+                x for x in jobs
+                if x.result is not None
+            ])
+            jobs_remaining = [
+                x for x in jobs
+                if x.result is None
+            ]
+            print "jobs_remaining", len(jobs_remaining)
+            if not jobs_remaining:
+                break
+            if total_delay > 50:
+                # if at least 2 jobs had been done,
+                # it means the resizing and and tiles were made for
+                # the default zoom level
+                had_to_give_up = jobs_done >= 2
+                break
 
         callback(had_to_give_up)
 
@@ -1124,7 +1099,7 @@ class TileMakerMixin(object):
         )
         url = base_url + self.reverse_url('image', fileid)
 
-        q = Queue('default', connection=self.redis)
+        q = Queue(connection=self.redis)
         q.enqueue(
             send_url,
             url,
@@ -1222,7 +1197,7 @@ class DownloadUploadHandler(UploadHandler, TileMakerMixin):
                 fileid,
                 destination,
                 ranges,
-                extension
+                extension,
             )
             # clear the home page cache
             try:
@@ -1333,8 +1308,7 @@ class TileHandler(BaseHandler):
         if size != 256:
             raise tornado.web.HTTPError(400, 'size must be 256')
 
-        priority = self.application.settings['debug'] and 'default' or 'high'
-        q = Queue(priority, connection=self.redis)
+        q = Queue(connection=self.redis)
         job = q.enqueue(
             make_tile,
             image,
@@ -1373,14 +1347,11 @@ class TileHandler(BaseHandler):
                     _expires.strftime('%a, %d %b %Y %H:%M:%S GMT')
                 )
             self.write(open(save_filepath, 'rb').read())
-            priority = (
-                self.application.settings['debug'] and 'default' or 'low'
-            )
             fileid = image.replace('/', '')
 
             lock_key = 'uploading:%s' % fileid
             if not self.redis.get(lock_key):
-                q = Queue(priority, connection=self.redis)
+                q = Queue(connection=self.redis)
                 q.enqueue(
                     upload_tiles,
                     fileid,
@@ -1388,10 +1359,6 @@ class TileHandler(BaseHandler):
                     max_count=10,
                     only_if_no_cdn_domain=True
                 )
-
-            # this is used by the admin
-            count_key = 'count_all_tiles:%s' % image['fileid']
-            self.redis.delete(count_key)
 
         except IOError:
             self.set_header('Content-Type', 'image/png')

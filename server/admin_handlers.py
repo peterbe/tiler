@@ -40,7 +40,7 @@ class AdminBaseHandler(BaseHandler):
             self.redis.setex(
                 count_key,
                 count,
-                60 * 60
+                60 * 5
             )
         return count
 
@@ -407,6 +407,9 @@ class AdminUnsetCDNHandler(AdminBaseHandler):
         # locking it from aws upload for 1 hour
         self.redis.setex(lock_key, time.time(), 60 * 60)
 
+        metadata_key = 'metadata:%s' % fileid
+        self.redis.delete(metadata_key)
+
         upload_log = os.path.join(
             self.application.settings['static_path'],
             'upload.%s.txt' % fileid
@@ -420,7 +423,7 @@ class AdminUnsetCDNHandler(AdminBaseHandler):
         self.redirect(url)
 
 
-@route('/admin/(?P<fileid>\w{9})/tiles/unlock-aws-upload/',
+@route('/admin/(?P<fileid>\w{9})/tiles/aws-upload/unlock/',
        name='admin_unlock_awsupload')
 class AdminUnlockAWSUploadHandler(AdminBaseHandler):
 
@@ -439,6 +442,30 @@ class AdminUnlockAWSUploadHandler(AdminBaseHandler):
 
         lock_key = 'uploading:%s' % fileid
         self.redis.delete(lock_key)
+
+        url = self.reverse_url('admin_image', fileid)
+        self.redirect(url)
+
+
+@route('/admin/(?P<fileid>\w{9})/tiles/aws-upload/lock/',
+       name='admin_lock_awsupload')
+class AdminLockAWSUploadHandler(AdminBaseHandler):
+
+    def check_xsrf_cookie(self):
+        pass
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def post(self, fileid):
+        image = yield motor.Op(
+            self.db.images.find_one,
+            {'fileid': fileid}
+        )
+        if not image:
+            raise tornado.web.HTTPError(404, "File not found")
+
+        lock_key = 'uploading:%s' % fileid
+        self.redis.setex(lock_key, time.time(), 60 * 60)
 
         url = self.reverse_url('admin_image', fileid)
         self.redirect(url)

@@ -229,7 +229,7 @@ var Editing = (function() {
       $('[name="title"]', c).val(response.title);
     } else {
       var age = $('body').data('age');
-      if (age < 60) {
+      if (age < (60 * 5)) {
         $('a.edit').click();
       }
     }
