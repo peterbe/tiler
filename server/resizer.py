@@ -16,7 +16,6 @@ def resize_image(path, width, save_path):
         (path, _resize_tool, width, save_path)
     )
     cmd = 'MAGICK_THREAD_LIMIT=1 ' + cmd
-    cmd = 'time ' + cmd
     print "CMD", repr(cmd)
     process = subprocess.Popen(
         cmd,
