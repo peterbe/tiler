@@ -75,6 +75,13 @@
         {{ ', '.join(str(int(x)) for x in image['ranges']) }}
       </dd>
 
+      <dt>Served:</dt>
+      <dd>
+        {% if image.get('bytes_served') %}
+        {% module ShowFileSize(image['bytes_served']) %}
+        {% else %}0{% end %}
+      </dd>
+
       <dt>Hits:</dt>
       <dd>
         {{ image['hits'] }}

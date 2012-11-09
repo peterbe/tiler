@@ -118,6 +118,9 @@ class AdminHomeHandler(AdminBaseHandler):
         image = yield motor.Op(cursor.next_object)
         images = []
         count = 0
+        total_bytes_served = 0
+        total_hits = 0
+        _shown_image_ids = []
 
         while image:
             if not image.get('width'):
@@ -154,6 +157,15 @@ class AdminHomeHandler(AdminBaseHandler):
                 lock_key = 'uploading:%s' % image['fileid']
                 image['uploading_locked'] = self.redis.get(lock_key)
             count += 1
+            served = self.redis.hget('bytes_served', image['fileid'])
+            if served is not None:
+                total_bytes_served += int(served)
+                image['bytes_served'] = int(served)
+            hits = self.redis.get('hits:%s' % image['fileid'])
+            if hits is not None:
+                total_hits += int(hits)
+                image['hits'] = int(hits)
+            _shown_image_ids.append(image['_id'])
             images.append(image)
             image = yield motor.Op(cursor.next_object)
 
@@ -175,6 +187,20 @@ class AdminHomeHandler(AdminBaseHandler):
         data['total_count'] = total_count
         data['bytes_downloaded'] = self.redis.get('bytes_downloaded')
 
+        cursor = self.db.images.find({}, ('fileid',))
+        image = yield motor.Op(cursor.next_object)
+        while image:
+            if image['_id'] not in _shown_image_ids:
+                served = self.redis.hget('bytes_served', image['fileid'])
+                if served is not None:
+                    total_bytes_served += int(served)
+                hits = self.redis.get('hits:%s' % image['fileid'])
+                if hits is not None:
+                    total_hits += int(hits)
+            image = yield motor.Op(cursor.next_object)
+        data['total_bytes_served'] = total_bytes_served
+        data['total_hits'] = total_hits
+
         self.render('admin/home.html', **data)
 
 
@@ -193,6 +219,9 @@ class AdminImageHandler(AdminBaseHandler):
 
         self.attach_tiles_info(image)
         self.attach_hits_info(image)
+        served = self.redis.hget('bytes_served', image['fileid'])
+        if served is not None:
+            image['bytes_served'] = int(served)
 
         lock_key = 'uploading:%s' % fileid
         uploading_locked = self.redis.get(lock_key)
