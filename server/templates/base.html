@@ -49,11 +49,11 @@
 	        {% if user %}
 		{% module xsrf_form_html() %}
                 <ul class="nav pull-right">
-                    <li class="dropdown"><a href="#" class="dropdown-toggle" data-toggle="dropdown"
+                    <li class="dropdown"><a href="/?user={{ user }}" class="dropdown-toggle" data-toggle="dropdown"
 		     ><img class="gravatar" src="{{ gravatar_url }}" alt="Picture">
 		     {{ user }} <b class="caret"></b></a>
                         <ul class="dropdown-menu">
-                            <li><a href="?user={{ user }}"><i class="icon-upload"></i> Your uploads</a></li>
+                            <li><a href="/?user={{ user }}"><i class="icon-upload"></i> Your uploads</a></li>
 			    {#<li><a href="/preferences"><i class="icon-cog"></i> Preferences</a></li>#}
                             <li class="divider"></li>
                             <li><a href="#" class="signout"><i class="icon-off"></i> Sign out</a></li>
@@ -101,6 +101,7 @@
       <hr>
 
       <footer>
+        {% block extra_footer %}{% end %}
         <p>&copy; {{ PROJECT_TITLE }} 2012</p>
       </footer>
 

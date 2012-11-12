@@ -4,13 +4,26 @@
     <style type="text/css">
     .example img { float:left; margin-right: 5px; }
     .example .url { font-weight: bold; }
+    .footer-stats { float:right }
     </style>
     {% end %}
 
 {% block main %}
 
       {% if yours %}
-      <h2>Your uploads</h2>
+      <div class="hero-unit">
+          <h2>Your uploads ({{ total_count }})</h2>
+          {% if total_count %}
+          <p>Your pictures have accumulated a total of
+          <strong>{% module Thousands(total_hits) %} hits</strong>
+          {% if total_hits_this_month and total_hits_this_month != total_hits %}
+          ({{ total_hits_this_month }} this month)
+          {% end %}
+          and caused people to download a total of
+          <strong>{% module ShowFileSize(total_bytes_served) %}</strong>.
+          </p>
+          {% end %}
+        </div>
       {% else %}
         {% if show_hero_unit %}
         <div class="hero-unit">
@@ -26,4 +39,15 @@
       {% include "_pagination.html" %}
 
 
+{% end %}
+
+{% block extra_footer %}
+        <p class="footer-stats">
+          <strong>{% module ShowFileSize(total_bytes_served) %} served</strong>
+          and <strong>{% module Thousands(total_hits) %} hits</strong>
+          {% if total_hits_this_month and total_hits_this_month != total_hits %}
+          ({{ total_hits_this_month }} this month)
+          {% end %}
+          across <strong>{% module Thousands(total_count) %} pictures</strong>.
+        </p>
 {% end %}

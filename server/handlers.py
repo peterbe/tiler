@@ -246,7 +246,7 @@ class HomeHandler(BaseHandler, ThumbnailGridRendererMixin):
 
         total_count = yield motor.Op(self.db.images.find(search).count)
 
-        page_size = 12
+        page_size = 15
         _search_values = [
             v for (k, v) in search.items()
             if k != 'date'
@@ -287,7 +287,126 @@ class HomeHandler(BaseHandler, ThumbnailGridRendererMixin):
 
         data['pagination'] = pagination
         data['show_hero_unit'] = self.get_argument('page', None) is None
+        data['total_count'] = total_count
+        if total_count:
+            _cache_key = 'totalstats'
+            value = self.redis.get(_cache_key)
+            if value:
+                stats = tornado.escape.json_decode(value)
+            else:
+                fileids = yield tornado.gen.Task(
+                    self.get_all_fileids,
+                    user=self.get_argument('user', None)
+                )
+                stats = self.get_stats_by_fileids(
+                    fileids,
+                    user=self.get_argument('user', None)
+                )
+                self.redis.setex(
+                    _cache_key,
+                    tornado.escape.json_encode(stats),
+                    60
+                )
+
+        data['total_bytes_served'] = stats['total_bytes_served']
+        data['total_hits'] = stats['total_hits']
+        data['total_hits_this_month'] = stats['total_hits_this_month']
         self.render('index.html', **data)
+
+    def get_stats_by_fileids(self, fileids, user=None):
+        total_hits = total_hits_this_month = total_bytes_served = 0
+
+        _now = datetime.datetime.utcnow()
+        for fileid in fileids:
+            hit_key = 'hits:%s' % fileid
+            hit_month_key = (
+                'hits:%s:%s:%s' %
+                (_now.year, _now.month, fileid)
+            )
+            hits = self.redis.get(hit_key)
+            if hits:
+                total_hits += int(hits)
+            hits = self.redis.get(hit_month_key)
+            if hits:
+                total_hits_this_month += int(hits)
+            served = self.redis.hget('bytes_served', fileid)
+            if served is not None:
+                total_bytes_served += int(served)
+
+        return {
+            'total_hits': total_hits,
+            'total_hits_this_month': total_hits_this_month,
+            'total_bytes_served': total_bytes_served,
+        }
+
+    @tornado.gen.engine
+    def get_all_fileids(self, callback, user=None):
+        cache_key = 'allfileids'
+        if user:
+            cache_key += ':%s' % user
+        fileids = self.redis.lrange(cache_key, 0, -1)
+        if not fileids:
+            # cache miss
+            fileids = []  # in case it was None
+            search = {}
+            if user:
+                search['user'] = user
+            cursor = self.db.images.find(search, ('fileid',))
+            image = yield motor.Op(cursor.next_object)
+            while image:
+                self.redis.lpush(cache_key, image['fileid'])
+                fileids.append(image['fileid'])
+                image = yield motor.Op(cursor.next_object)
+        callback(fileids)
+
+    @tornado.gen.engine
+    def get_total_hits(self, callback, user=None):
+        _now = datetime.datetime.utcnow()
+        _cache_key = 'total_hits'
+        _cache_key_this_month = 'total_hits:%s:%s' % (_now.year, _now.month)
+        if user:
+            _cache_key += user
+            _cache_key_this_month += user
+        total_hits = self.redis.get(_cache_key)
+        total_hits_this_month = self.redis.get(_cache_key_this_month)
+        if total_hits is None or total_hits_this_month is None:
+            _r = yield tornado.gen.Task(
+                self._get_total_hits,
+                user=user
+            )
+            total_hits, total_hits_this_month = _r
+            self.redis.setex(_cache_key, total_hits, 60)
+            self.redis.setex(_cache_key_this_month, total_hits_this_month, 60)
+        callback((int(total_hits), int(total_hits_this_month)))
+
+    @tornado.gen.engine
+    def _get_total_hits(self, callback=None, user=None):
+        total = this_month = 0
+        _now = datetime.datetime.utcnow()
+        search = {}
+        if user:
+            search['user'] = user
+        cursor = self.db.images.find(search, ('fileid',))
+        image = yield motor.Op(cursor.next_object)
+        while image:
+            hit_key = 'hits:%s' % image['fileid']
+            hit_month_key = (
+                'hits:%s:%s:%s' %
+                (_now.year, _now.month, image['fileid'])
+            )
+            value = self.redis.get(hit_key)
+            if value is not None:
+                total += int(value)
+            value = self.redis.get(hit_month_key)
+            if value is not None:
+                this_month += int(value)
+            image = yield motor.Op(cursor.next_object)
+
+        callback((total, this_month))
+
+    @tornado.gen.engine
+    def get_total_bytes_served(self, callback, user=None):
+        pass
 
     def insert_hits_html(self, html):
         _now = datetime.datetime.utcnow()
@@ -1063,7 +1182,7 @@ class TileMakerMixin(object):
         delay = 1
         total_delay = 0
         while True:
-            print "TOTAL DELAY", total_delay
+            #print "TOTAL DELAY", total_delay
             yield tornado.gen.Task(
                 ioloop_instance.add_timeout,
                 time.time() + delay
@@ -1079,7 +1198,7 @@ class TileMakerMixin(object):
                 x for x in jobs
                 if x.result is None
             ]
-            print "jobs_remaining", len(jobs_remaining)
+            #print "jobs_remaining", len(jobs_remaining)
             if not jobs_remaining:
                 break
             if total_delay > 50:
@@ -1166,6 +1285,11 @@ class DownloadUploadHandler(UploadHandler, TileMakerMixin):
             )
             area = size[0] * size[1]
             r = 1.0 * size[0] / size[1]
+
+            all_fileids_key = 'allfileids'
+            self.redis.lpush(all_fileids_key, fileid)
+            all_fileids_key = ':%s' % document['user']
+            self.redis.lpush(all_fileids_key, fileid)
 
             try:
                 self.redis.incr('bytes_downloaded', amount=document['size'])

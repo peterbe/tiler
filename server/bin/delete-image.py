@@ -40,6 +40,11 @@ def run(*fileids):
         lock_key = 'uploading:%s' % document['fileid']
         _redis.delete(lock_key)
 
+        all_fileids_key = 'allfileids'
+        _redis.delete(all_fileids_key)
+        all_fileids_key += ':%s' % document['user']
+        _redis.delete(all_fileids_key)
+
         cache_keys_key = 'thumbnail_grid:keys'
         for key in _redis.lrange(cache_keys_key, 0, -1):
             _redis.delete(key)
