@@ -32,15 +32,6 @@ from emailer import send_url
 import settings
 
 
-def commafy(s):
-    r = []
-    for i, c in enumerate(reversed(str(s))):
-        if i and (not (i % 3)):
-            r.insert(0, ',')
-        r.insert(0, c)
-    return ''.join(r)
-
-
 def sample_queue_job():
     # used to check that the queue workers are awake
     return "OK"
@@ -359,55 +350,6 @@ class HomeHandler(BaseHandler, ThumbnailGridRendererMixin):
                 image = yield motor.Op(cursor.next_object)
         callback(fileids)
 
-    @tornado.gen.engine
-    def get_total_hits(self, callback, user=None):
-        _now = datetime.datetime.utcnow()
-        _cache_key = 'total_hits'
-        _cache_key_this_month = 'total_hits:%s:%s' % (_now.year, _now.month)
-        if user:
-            _cache_key += user
-            _cache_key_this_month += user
-        total_hits = self.redis.get(_cache_key)
-        total_hits_this_month = self.redis.get(_cache_key_this_month)
-        if total_hits is None or total_hits_this_month is None:
-            _r = yield tornado.gen.Task(
-                self._get_total_hits,
-                user=user
-            )
-            total_hits, total_hits_this_month = _r
-            self.redis.setex(_cache_key, total_hits, 60)
-            self.redis.setex(_cache_key_this_month, total_hits_this_month, 60)
-        callback((int(total_hits), int(total_hits_this_month)))
-
-    @tornado.gen.engine
-    def _get_total_hits(self, callback=None, user=None):
-        total = this_month = 0
-        _now = datetime.datetime.utcnow()
-        search = {}
-        if user:
-            search['user'] = user
-        cursor = self.db.images.find(search, ('fileid',))
-        image = yield motor.Op(cursor.next_object)
-        while image:
-            hit_key = 'hits:%s' % image['fileid']
-            hit_month_key = (
-                'hits:%s:%s:%s' %
-                (_now.year, _now.month, image['fileid'])
-            )
-            value = self.redis.get(hit_key)
-            if value is not None:
-                total += int(value)
-            value = self.redis.get(hit_month_key)
-            if value is not None:
-                this_month += int(value)
-            image = yield motor.Op(cursor.next_object)
-
-        callback((total, this_month))
-
-    @tornado.gen.engine
-    def get_total_bytes_served(self, callback, user=None):
-        pass
-
     def insert_hits_html(self, html):
         _now = datetime.datetime.utcnow()
 
@@ -423,15 +365,17 @@ class HomeHandler(BaseHandler, ThumbnailGridRendererMixin):
                 self.redis.get(hit_month_key)
             )
             if hits:
+                hits = int(hits)
                 if hits == 1:
                     h = '1 hit'
                 else:
-                    h = '%s hits' % commafy(hits)
-                if hits_this_month and hits_this_month != hits:
+                    h = '%s hits' % format(hits, ',')
+                if hits_this_month and int(hits_this_month) != hits:
+                    hits_this_month = int(hits_this_month)
                     if hits_this_month == 1:
                         h += ' (1 hit this month)'
                     else:
-                        h += ' (%s hits this month)' % commafy(hits_this_month)
+                        h += ' (%s hits this month)' % format(hits_this_month, ',')
                 return h + '<br>'
             return match.group()
         html = hits_html_regex.sub(replacer, html)

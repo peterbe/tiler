@@ -41,19 +41,10 @@ class TimeSince(tornado.web.UIModule):
         return smartertimesince(date, date2)
 
 
-def commafy(s):
-    r = []
-    for i, c in enumerate(reversed(str(s))):
-        if i and (not (i % 3)):
-            r.insert(0, ',')
-        r.insert(0, c)
-    return ''.join(r)
-
-
 class Thousands(tornado.web.UIModule):
 
     def render(self, number):
-        return commafy(str(number))
+        return format(number, ',')
 
 
 class LinkTags(tornado.web.UIModule):
