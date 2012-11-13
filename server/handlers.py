@@ -375,7 +375,10 @@ class HomeHandler(BaseHandler, ThumbnailGridRendererMixin):
                     if hits_this_month == 1:
                         h += ' (1 hit this month)'
                     else:
-                        h += ' (%s hits this month)' % format(hits_this_month, ',')
+                        h += (
+                            ' (%s hits this month)' %
+                            format(hits_this_month, ',')
+                        )
                 return h + '<br>'
             return match.group()
         html = hits_html_regex.sub(replacer, html)
@@ -1156,22 +1159,38 @@ class TileMakerMixin(object):
         callback(had_to_give_up)
 
     @tornado.gen.engine
-    def email_about_upload(self, fileid, email, callback):
+    def email_about_upload(self, fileid, extension, email, callback):
         base_url = (
             '%s://%s' %
             (self.request.protocol, self.request.host)
         )
         url = base_url + self.reverse_url('image', fileid)
 
+        thumbnail_url = self.make_thumbnail_url(
+            fileid,
+            100,
+            extension=extension,
+            absolute_url=True,
+        )
+
+        email_body = self.render_string(
+            '_email.html',
+            url=url,
+            fileid=fileid,
+            thumbnail_url=thumbnail_url,
+            host=self.request.host,
+        )
+
         q = Queue(connection=self.redis)
-        q.enqueue(
+        job = q.enqueue(
             send_url,
             url,
             fileid,
             email,
+            email_body,
             self.application.settings['debug']
         )
-        callback()
+        callback(job)
 
 
 @route('/upload/download', 'upload_download')
@@ -1290,7 +1309,8 @@ class DownloadUploadHandler(UploadHandler, TileMakerMixin):
             yield tornado.gen.Task(
                 self.email_about_upload,
                 fileid,
-                document['user']
+                extension,
+                document['user'],
             )
         else:
             try:

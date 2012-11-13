@@ -30,6 +30,13 @@
       <dt>User:</dt>
       <dd>
         <a href="mailto:{{ image['user'] }}">{{ image['user'] }}</a>
+        <a href="#" class="resend" style="font-size:.8em">resend</a>
+        <form class="resend" style="display:none"
+              action="{{ reverse_url('admin_resend_email', image['fileid']) }}"
+              method="post">
+        <input name="email" value="{{ image['user'] }}">
+        <button class="btn btn-mini" type="submit">resend</button>
+        </form>
       </dd>
 
       <dt>CDN:</dt>
@@ -116,4 +123,18 @@
     </dl>
   </div>
 </div>
+{% end %}
+
+{% block extra_js %}
+<script>
+$(function() {
+  $('a.resend').click(function() {
+    if ($('form.resend:visible').size()) {
+      $('form.resend').hide();
+    } else {
+      $('form.resend').show();
+    }
+  });
+});
+</script>
 {% end %}

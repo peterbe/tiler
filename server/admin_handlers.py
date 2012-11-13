@@ -498,3 +498,53 @@ class AdminLockAWSUploadHandler(AdminBaseHandler):
 
         url = self.reverse_url('admin_image', fileid)
         self.redirect(url)
+
+
+@route('/admin/(?P<fileid>\w{9})/tiles/resend/',
+       name='admin_resend_email')
+class AdminResendEmailHandler(AdminBaseHandler, TileMakerMixin):
+
+    def check_xsrf_cookie(self):
+        pass
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def post(self, fileid):
+
+        image = yield motor.Op(
+            self.db.images.find_one,
+            {'fileid': fileid}
+        )
+        if not image:
+            raise tornado.web.HTTPError(404, "File not found")
+
+        if image['contenttype'] == 'image/jpeg':
+            extension = 'jpg'
+        elif image['contenttype'] == 'image/png':
+            extension = 'png'
+        else:
+            raise NotImplementedError('unknown content type')
+
+        email = self.get_argument('email', image['user'])
+        job = yield tornado.gen.Task(
+            self.email_about_upload,
+            fileid,
+            extension,
+            email,
+        )
+
+        delay = 1
+        total_delay = 0
+        ioloop_instance = tornado.ioloop.IOLoop.instance()
+        while job.result is None:
+            yield tornado.gen.Task(
+                ioloop_instance.add_timeout,
+                time.time() + delay
+            )
+            delay += 1
+            total_delay += delay
+            if total_delay > 3:
+                break
+
+        url = self.reverse_url('admin_image', fileid)
+        self.redirect(url)
