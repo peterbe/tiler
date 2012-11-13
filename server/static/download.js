@@ -123,6 +123,12 @@ var Download = (function() {
     var total = $('#expected_size').data('total');
     if (total) {
       var percentage = Math.round(response.done / total * 100);
+      if (percentage >= 100) {
+        $('#progress .progress-image-action').text('Processing');
+      } else {
+        $('#progress .progress-image-action').text('Downloading');
+      }
+
       $('#left').text(humanize.filesize(total - response.done));
       $('#percentage').text(percentage + '%');
       $('#progress .bar').css('width', percentage + '%');
