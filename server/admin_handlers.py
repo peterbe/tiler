@@ -470,7 +470,18 @@ class AdminUnlockAWSUploadHandler(AdminBaseHandler):
             raise tornado.web.HTTPError(404, "File not found")
 
         lock_key = 'uploading:%s' % fileid
-        self.redis.delete(lock_key)
+        if self.get_argument('lock_more', None):
+            # actually add another 60 minutes
+            value = self.redis.get(lock_key)
+            if value:
+                value = float(value)
+            else:
+                value = time.time()
+            value += 60 * 60
+            diff = value - time.time()
+            self.redis.setex(lock_key, time.time() + diff, int(diff))
+        else:
+            self.redis.delete(lock_key)
 
         url = self.reverse_url('admin_image', fileid)
         self.redirect(url)

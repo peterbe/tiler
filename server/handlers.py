@@ -642,6 +642,12 @@ class ImageEditHandler(BaseHandler):
         metadata_key = 'metadata:%s' % fileid
         self.redis.delete(metadata_key)
 
+        try:
+            self.clear_thumbnail_grid_cache()
+        except:
+            logging.error('Unable to clear_thumbnail_grid_cache()',
+                          exc_info=True)
+
         self.write(data)
         self.finish()
 

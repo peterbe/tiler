@@ -18,7 +18,7 @@
 
     {% module LinkTags('css/libs/leaflet.css', 'css/image.css') %}
     <!--[if lte IE 8]>
-    <link rel="stylesheet" href="//cdn.leafletjs.com/leaflet-0.4.4/leaflet.ie.css" />
+    <link rel="stylesheet" href="//cdn.leafletjs.com/leaflet-0.4.5/leaflet.ie.css" />
     <![endif]-->
 
     {% if can_edit %}
@@ -42,19 +42,12 @@
     <div id="track-stats" style="display:none">
       <span></span> downloaded
     </div>
-    <div id="topnav">
-      <ul>
-        <li><a href="/"><strong>{{ PROJECT_TITLE }}</strong></a></li>
-        {#<li><a href="{{ reverse_url('upload') }}" class="upload">Upload another</a></li>#}
-        <li><a href="" class="permalink">permalink</a>
-        <input name="permalink" class="permalink" style="display:none">
-        <a href="#" class="close-permalink" style="display:none">&times;</a>
-        </li>
-        {% if can_edit %}
-        <li><a href="#" class="edit" data-toggle="modal" data-target="#edit-modal">Edit</a></li>
-        {% end %}
-      </ul>
+
+    <div id="permalink" style="display:none">
+      <input name="permalink">
+      <a href="#" class="close-permalink" title="Close">&times;</a>
     </div>
+
     {% module xsrf_form_html() %}
 
     {% if can_edit %}

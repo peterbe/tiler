@@ -48,6 +48,7 @@ var Drawing = (function() {
 
   return {
      edit_annotation: function(annotation) {
+       var previous_html = annotation._popup._content;  // hackish :(
        annotation.bindPopup($('#annotate-edit').html()).openPopup();
        $('#id-annotate-title-edit')
          .val(annotation.options.title)
@@ -55,6 +56,10 @@ var Drawing = (function() {
              .select();
        var form = $('#id-annotate-title-edit').parents('form');
        $('input[name="id"]', form).val(annotation.options.id);
+       $('input[name="cancel"]', form).click(function() {
+         annotation.bindPopup(previous_html);
+         map.closePopup();
+       });
        form.submit(function() {
          var url = location.pathname + '/annotations/edit';
          $.post(url, $(this).serializeObject(), function(response) {
@@ -137,17 +142,7 @@ $.fn.serializeObject = function() {
 
 var Editing = (function() {
 
-  // bind some events
-  $('#topnav a.edit').click(_clicked_edit);
-
-  function _clicked_closer() {
-    $('#topnav li.hidden').removeClass('hidden');
-    $(this).parents('li').addClass('hidden');
-    $('#topnav li.drawtool').addClass('hidden');
-    return false;
-  }
-
-  function _clicked_edit() {
+  function _opener() {
     $('#edit-modal').modal({
        backdrop: false,
       keyboard: true
@@ -242,9 +237,12 @@ var Editing = (function() {
   return {
      setup: function(map) {
        Drawing.setup(map);
+       // by the simple fact that this file is loaded,
+       // we can show the Edit button
+       $('a.leaflet-control-custom-edit').show();
      },
-    reset_drawing: function() {
-      $('#topnav li.closer a').click();
+    open: function() {
+      _opener();
     }
   };
 

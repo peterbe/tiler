@@ -1,4 +1,5 @@
 var Hashing = (function() {
+  var _map;
   var _hashing_on = false;
 
   var DEFAULT_LAT = 70.0, DEFAULT_LNG = 0;
@@ -22,8 +23,20 @@ var Hashing = (function() {
   }
 
   return {
+     showPermalink: function() {
+       if ($('#permalink:visible').size()) {
+         $('#permalink a.close-permalink').click();
+         return;
+       }
+       var container = $('#permalink');
+       $('input[name="permalink"]', container)
+         .val(location.href + getHashByMap(_map));
+       container.slideDown(300);
+       $('input[name="permalink"]', container)
+         .show().focus().select();
+     },
      setup: function(map, default_zoom) {
-
+       _map = map;
        var hash = location.hash.substring(1);
        var args = hash.split("/").map(Number);
        if (args.length < 3 || args.some(isNaN)) {
@@ -44,23 +57,8 @@ var Hashing = (function() {
          setHash(event.target.getZoom(), c.lat, c.lng);
        });
 
-       $('a.permalink').on('mouseover', function() {
-         $(this).attr('href', getHashByMap(map));
-       }).on('click', function() {
-         $(this).hide();
-         $('a.upload').hide();
-         $('input[name="permalink"]')
-           .val(location.href + getHashByMap(map))
-             .show().focus().select();
-         $('a.close-permalink').show();
-         return false;
-       });
-
-       $('a.close-permalink').on('click', function() {
-         $('input[name="permalink"]').hide();
-         $(this).hide();
-         $('a.permalink').show();
-         $('a.upload').show();
+       $('#permalink a.close-permalink').on('click', function() {
+         $('#permalink').slideUp(100);
          return false;
        });
 
@@ -233,6 +231,123 @@ var MARKER_ICON = L.icon({
 L.Icon.Default.imagePath = '/static/libs/images';
 
 
+
+var CustomButtons = (function() {
+
+  function launchFullScreen(element) {
+    if(element.requestFullScreen) {
+      element.requestFullScreen();
+    } else if(element.mozRequestFullScreen) {
+      element.mozRequestFullScreen();
+    } else if(element.webkitRequestFullScreen) {
+      element.webkitRequestFullScreen();
+    }
+  }
+
+  function cancelFullscreen() {
+    if(document.cancelFullScreen) {
+      document.cancelFullScreen();
+    } else if(document.mozCancelFullScreen) {
+      document.mozCancelFullScreen();
+    } else if(document.webkitCancelFullScreen) {
+      document.webkitCancelFullScreen();
+    }
+  }
+
+  function make_button(container, classname, title, href, handler, visible) {
+    var link = L.DomUtil.create('a', classname, container);
+    link.href = href;
+    link.title = title;
+    if (!visible) {
+      link.style['display'] = 'none';
+    }
+
+    L.DomEvent
+      .on(link, 'click', L.DomEvent.stopPropagation)
+        .on(link, 'mousedown', L.DomEvent.stopPropagation)
+          .on(link, 'dblclick', L.DomEvent.stopPropagation)
+            .on(link, 'click', L.DomEvent.preventDefault)
+              .on(link, 'click', handler);
+    return link;
+  }
+
+  var custom_button_class = L.Control.extend({
+     options: {
+        position: 'topright'
+     },
+    initialize: function (options) {
+        L.Util.extend(this.options, options);
+    },
+
+    onAdd: function(map) {
+      this._map = map;
+      var container = L.DomUtil.create('div', 'leaflet-control-custom');
+
+      var home_link = L.DomUtil.create('a', 'leaflet-control-custom-home', container);
+      home_link.href = '/';
+      home_link.title = "Go back to the Home page";
+
+      make_button(container,
+                  'leaflet-control-custom-permalink',
+                  "Permanent link to this view",
+                  '#',
+                  this.handle_permalink,
+                  true);
+
+      make_button(container,
+                  'leaflet-control-custom-fullscreen',
+                  "Fullscreen",
+                  '#',
+                  this.handle_fullscreen,
+                 true);
+
+      make_button(container,
+                  'leaflet-control-custom-unfullscreen',
+                  "Exit fullscreen",
+                  '#',
+                  this.handle_unfullscreen,
+                  false);
+
+      make_button(container,
+                  'leaflet-control-custom-edit',
+                  "Edit information about picture",
+                  '#',
+                  this.handle_edit,
+                  false);
+
+      return container;
+    },
+    handle_fullscreen: function() {
+      $('a.leaflet-control-custom-fullscreen').hide();
+      $('a.leaflet-control-custom-unfullscreen').show();
+      launchFullScreen(document.documentElement);
+      return false;
+    },
+    handle_unfullscreen: function() {
+      cancelFullscreen();
+      $('a.leaflet-control-custom-unfullscreen').hide();
+      $('a.leaflet-control-custom-fullscreen').show();
+      return false;
+    },
+    handle_permalink: function() {
+      Hashing.showPermalink();
+      return false;
+    },
+    handle_edit: function() {
+      Editing.open();
+      return false;
+    }
+  });
+
+  return {
+     setup: function(map) {
+       var buttons = new custom_button_class();
+       buttons.addTo(map);
+     }
+  };
+})();
+
+
 $(function() {
 
   var $body = $('body');
@@ -261,7 +376,7 @@ $(function() {
   map
     .attributionControl
     .setPrefix('Powered by <a href="http://hugepic.io/">HUGEpic.io</a>');
-
+  CustomButtons.setup(map);
   Hashing.setup(map, default_zoom);
   Annotations.init(map);
 

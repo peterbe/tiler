@@ -50,12 +50,13 @@
           {% if uploading_locked %}
             locked: <code>{{ uploading_locked }}</code>
             <form action="{{ reverse_url('admin_unlock_awsupload', image['fileid']) }}" method="post">
-            <button class="btn btn-mini" type="submit">unlock</button>
+            <input class="btn btn-mini" type="submit" value="unlock">
+            <input class="btn btn-mini" name="lock_more" type="submit" value="lock more">
             </form>
           {% else %}
             view to start
             <form action="{{ reverse_url('admin_lock_awsupload', image['fileid']) }}" method="post">
-            <button class="btn btn-mini" type="submit">lock</button>
+            <input class="btn btn-mini" type="submit" value="lock">
             </form>
           {% end %}
         {% end %}
