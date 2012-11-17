@@ -260,7 +260,7 @@ class HomeHandler(BaseHandler, ThumbnailGridRendererMixin):
             self.redis.setex(
                 cache_key,
                 tornado.escape.json_encode([thumbnail_grid, count]),
-                60 * 60
+                30 * 60
             )
             self.remember_thumbnail_grid_cache_key(cache_key)
         thumbnail_grid = self.insert_hits_html(thumbnail_grid)
@@ -1238,6 +1238,8 @@ class TileMakerMixin(object):
             email_body,
             self.application.settings['debug']
         )
+        print "URL"
+        print url
         callback(job)
 
 

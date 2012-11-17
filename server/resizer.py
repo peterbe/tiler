@@ -6,11 +6,7 @@ import subprocess
 
 
 def resize_image(path, width, save_path):
-    # by default, `-sample` is quicker when then picture is large
-    _resize_tool = 'sample'
-    if width < 1000 or save_path.endswith('.png'):
-        # only use `-resize` if it's a small picture
-        _resize_tool = 'resize'
+    _resize_tool = 'resize'
     cmd = (
         'convert %s -%s %d %s' %
         (path, _resize_tool, width, save_path)
