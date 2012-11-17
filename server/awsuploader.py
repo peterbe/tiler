@@ -38,7 +38,8 @@ def upload_original(fileid, extension, static_path, bucket_id):
 
 @gen.engine
 def upload_all_tiles(fileid, static_path, bucket_id, max_count=0,
-                     only_if_no_cdn_domain=False):
+                     only_if_no_cdn_domain=False,
+                     replace=True):
     log_file = os.path.join(static_path, 'upload.%s.txt' % fileid)
 
     conn = S3Connection(settings.AWS_ACCESS_KEY, settings.AWS_SECRET_KEY)
@@ -98,9 +99,7 @@ def upload_all_tiles(fileid, static_path, bucket_id, max_count=0,
                 print "(%d of %d)" % (len(count_done), total)
                 k.set_contents_from_filename(
                     each,
-                    # because we sometimes reset and thus might
-                    # upload it again
-                    replace=False,
+                    replace=replace,
                     reduced_redundancy=True
                 )
                 k.make_public()
@@ -140,13 +139,15 @@ def upload_all_tiles(fileid, static_path, bucket_id, max_count=0,
 
 
 def upload_tiles(fileid, static_path, max_count=10,
-                 only_if_no_cdn_domain=False):
+                 only_if_no_cdn_domain=False,
+                 replace=True):
     upload_all_tiles(
         fileid,
         static_path,
         settings.TILES_BUCKET_ID,
         max_count=max_count,
-        only_if_no_cdn_domain=only_if_no_cdn_domain
+        only_if_no_cdn_domain=only_if_no_cdn_domain,
+        replace=replace
     )
     IOLoop.instance().start()
 
