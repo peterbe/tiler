@@ -59,10 +59,18 @@ g circle {
 #permalink input {
   width: 300px;
 }
-#permalink a {
+#permalink a.close-permalink {
   color: #efefef;
   font-size: 140%;
   text-decoration: none;
+}
+
+#permalink p {
+  margin-top: 15px;
+}
+#permalink p a {
+  color: #efefef;
+  text-decoration: underline;
 }
 
 /* For editing */

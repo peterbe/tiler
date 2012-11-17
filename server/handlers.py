@@ -42,6 +42,8 @@ class BaseHandler(tornado.web.RequestHandler):
     DEFAULT_RANGE_MIN = 2
     DEFAULT_RANGE_MAX = 5
     DEFAULT_ZOOM = 3
+    DEFAULT_LAT = 70.0
+    DEFAULT_LNG = 00.0
     DEFAULT_EXTENSION = 'png'
 
     @property
@@ -390,7 +392,7 @@ class ImageHandler(BaseHandler):
 
     @tornado.web.asynchronous
     @tornado.gen.engine
-    def get(self, fileid):
+    def get(self, fileid, zoom=None, lat=None, lng=None):
         image_filename = (
             fileid[:1] +
             '/' +
@@ -398,10 +400,28 @@ class ImageHandler(BaseHandler):
             '/' +
             fileid[3:]
         )
+        embedded = int(self.get_argument('embedded', 0))
+        hide_annotations = int(
+            self.get_argument('hide_annotations', embedded)
+        )
+        hide_download_counter = int(
+            self.get_argument('hide_download_counter', embedded)
+        )
         # we might want to read from a database what the most
         # appropriate numbers should be here.
         ranges = [self.DEFAULT_RANGE_MIN, self.DEFAULT_RANGE_MAX]
         default_zoom = self.DEFAULT_ZOOM
+        if self.get_argument('zoom', zoom):
+            try:
+                default_zoom = int(self.get_argument('zoom', zoom))
+                if default_zoom < ranges[0]:
+                    raise ValueError
+                if default_zoom > ranges[-1]:
+                    raise ValueError
+            except ValueError:
+                self.write('Invalid zoom')
+                self.finish()
+                return
 
         metadata_key = 'metadata:%s' % fileid
         metadata = self.redis.get(metadata_key)
@@ -470,7 +490,7 @@ class ImageHandler(BaseHandler):
                     break
                 _range += 1
 
-        can_edit = self.get_current_user() == owner
+        can_edit = self.get_current_user() == owner and not embedded
 
         if content_type == 'image/jpeg':
             extension = 'jpg'
@@ -525,8 +545,14 @@ class ImageHandler(BaseHandler):
                 absolute_url=True,
             )
 
+        if lat is not None and lng is not None:
+            default_location = [lat, lng]
+        else:
+            default_location = None
+
         self.render(
             'image.html',
+            fileid=fileid,
             page_title=title or '/%s' % fileid,
             image_filename=image_filename,
             ranges=ranges,
@@ -536,6 +562,22 @@ class ImageHandler(BaseHandler):
             age=age,
             og_image_url=og_image_url,
             prefix=cdn_domain and '//' + cdn_domain or '',
+            embedded=embedded,
+            hide_annotations=hide_annotations,
+            hide_download_counter=hide_download_counter,
+            default_location=default_location,
+        )
+
+
+@route('/(\w{9})/([\d\.]+)/([-\d\.]+)/([-\d\.]+)', 'image_w_position')
+class ImageWPositionHandler(ImageHandler):
+
+    def get(self, fileid, zoom, lat, lng):
+        super(ImageWPositionHandler, self).get(
+            fileid,
+            int(float(zoom)),
+            float(lat),
+            float(lng)
         )
 
 
@@ -1590,6 +1632,27 @@ class GettingStartedHandler(BaseHandler):
 
     def get(self):
         self.render('gettingstarted.html')
+
+
+@route(r'/embed/(?P<fileid>\w{9})', 'embed')
+class EmbedHandler(BaseHandler):
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def get(self, fileid):
+        document = yield motor.Op(
+            self.db.images.find_one,
+            {'fileid': fileid}
+        )
+        if not document:
+            raise tornado.web.HTTPError(404, "File not found")
+        data = {
+            'fileid': fileid,
+            'default_zoom': self.DEFAULT_ZOOM,
+            'default_lat': self.DEFAULT_LAT,
+            'default_lng': self.DEFAULT_LNG,
+        }
+        self.render('embed.html', **data)
 
 
 # this handler gets automatically appended last to all handlers inside app.py

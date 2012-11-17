@@ -1,6 +1,7 @@
 var Hashing = (function() {
   var _map;
-  var _hashing_on = false;
+  var _fileid;
+  var _hashing_on = true;
 
   var DEFAULT_LAT = 70.0, DEFAULT_LNG = 0;
 
@@ -14,12 +15,24 @@ var Hashing = (function() {
 
   function getHash(zoom, lat, lng) {
     var precision = Math.max(0, Math.ceil(Math.log(zoom) / Math.LN2));
-    return '#' + zoom.toFixed(2) + '/' +
+    return zoom.toFixed(2) + '/' +
            lat.toFixed(precision) + '/' + lng.toFixed(precision);
   }
 
+  function getURL(zoom, lat, lng) {
+    var url = '/' + _fileid + '/' + getHash(zoom, lat, lng);
+    var qs = location.search;
+    var hash = location.hash;
+    if (qs) url += qs;
+    if (hash) url += hash;
+    return url;
+  }
+
   function setHash(zoom, lat, lng) {
-    location.hash = getHash(zoom, lat, lng);
+    var state = {zoom: zoom, lat: lat, lng: lng};
+    //var state = {};
+
+    history.replaceState(state, 'page', getURL(zoom, lat, lng));
   }
 
   return {
@@ -30,21 +43,16 @@ var Hashing = (function() {
        }
        var container = $('#permalink');
        $('input[name="permalink"]', container)
-         .val(location.href + getHashByMap(_map));
+         .val(location.protocol + '//' + location.host + getHashByMap(_map));
        container.slideDown(300);
        $('input[name="permalink"]', container)
          .show().focus().select();
      },
-     setup: function(map, default_zoom) {
+     setup: function(map, fileid, default_zoom, default_location) {
        _map = map;
-       var hash = location.hash.substring(1);
-       var args = hash.split("/").map(Number);
-       if (args.length < 3 || args.some(isNaN)) {
-         args = null;
-       }
-       if (args) {
-         _hashing_on = true;
-         map.setView([args[1], args[2]], args[0]);
+       _fileid = fileid;
+       if (default_location) {
+         map.setView([default_location[0], default_location[1]], default_zoom);
        } else {
          // Default!
          map.setView([DEFAULT_LAT, DEFAULT_LNG], default_zoom);
@@ -68,7 +76,9 @@ var Hashing = (function() {
 
 
 var Annotations = (function() {
+  var pathname;
   var annotations = {};
+
   return {
      new_annotation: function(annotation) {
        annotations[annotation.options.id] = annotation;
@@ -82,8 +92,9 @@ var Annotations = (function() {
        delete annotations[id];
        return false;
      },
-     init: function(map) {
-       $.getJSON(location.pathname + '/annotations', function(response) {
+     init: function(map, fileid) {
+       pathname = '/' + fileid;
+       $.getJSON(pathname + '/annotations', function(response) {
          $.each(response.annotations, function(i, each) {
            var options = {draggable: each.yours, title: each.title, id: each.id};
            options.weight = each.yours && 4 || 2;
@@ -110,7 +121,7 @@ var Annotations = (function() {
                  lat: event.target.getLatLng().lat,
                  lng: event.target.getLatLng().lng
                };
-               $.post(location.pathname + '/annotations/move', data, function() {
+               $.post(pathname + '/annotations/move', data, function() {
                  Title.change_temporarily("Marker moved", 2, true);
                });
              });
@@ -166,6 +177,7 @@ var TrackKeeper = (function() {
   var total_bytes = 0;
   var locked = false;
   var extension = null;
+  var pathname;
 
   function path(url) {
     return url.match(/\d\/\d+,\d+/g)[0];
@@ -185,7 +197,7 @@ var TrackKeeper = (function() {
   }
 
   function update_new_urls() {
-    var url = location.pathname + '/weight';
+    var url = pathname + '/weight';
     var data = {urls: new_urls.join('|'), extension: extension};
     $.post(url, data, function(response) {
       total_bytes += response.bytes;
@@ -196,6 +208,9 @@ var TrackKeeper = (function() {
   }
 
   return {
+     setup: function(fileid) {
+       pathname = '/' + fileid;
+     },
      notice: function(url) {
        var p = path(url);
        if (!extension) {
@@ -351,13 +366,17 @@ var CustomButtons = (function() {
 $(function() {
 
   var $body = $('body');
+  var fileid = $body.data('fileid');
   var image = $body.data('image');
   var range_min = $body.data('range-min');
   var range_max = $body.data('range-max');
   var default_zoom = $body.data('default-zoom');
   var extension = $body.data('extension');
   var prefix = $body.data('prefix');
-
+  var embedded = $body.data('embedded');
+  var hide_download_counter = $body.data('hide-download-counter');
+  var hide_annotations = $body.data('hide-annotations');
+  var default_location = $body.data('default-location');
 
   var tiles_url = prefix + '/tiles/' + image + '/256/{z}/{x},{y}.' + extension;
   var map_layer = new L.TileLayer(tiles_url, {
@@ -365,23 +384,36 @@ $(function() {
       maxZoom: range_max,
       zoomControl: range_max > range_min
     });
-  map_layer.on('tileload', function(e) {
-    TrackKeeper.notice(e.url);
-  });
+
+  if (!hide_download_counter) {
+    TrackKeeper.setup(fileid);
+    map_layer.on('tileload', function(e) {
+      TrackKeeper.notice(e.url);
+    });
+  }
 
   var map = new L.Map('map', {
      layers: [map_layer],
   });
 
+  var attribution_url = 'http://hugepic.io/';
+  if (embedded) {
+    attribution_url = 'http://hugepic.io/' + fileid;
+  }
   map
     .attributionControl
-    .setPrefix('Powered by <a href="http://hugepic.io/">HUGEpic.io</a>');
-  CustomButtons.setup(map);
-  Hashing.setup(map, default_zoom);
-  Annotations.init(map);
+    .setPrefix('Powered by <a href="' + attribution_url + '">HUGEpic.io</a>');
+
+  Hashing.setup(map, fileid, default_zoom, default_location);
+  if (!embedded) {
+    CustomButtons.setup(map);
+  }
+  if (!hide_annotations) {
+    Annotations.init(map, fileid);
+  }
 
   setTimeout(function() {
-    $.post(location.pathname + '/hit', {'_xsrf': $('input[name="_xsrf"]').val()});
+    $.post('/' + fileid + '/hit', {'_xsrf': $('input[name="_xsrf"]').val()});
   }, 1000);
 
   if (typeof map_loaded_callback !== 'undefined') {

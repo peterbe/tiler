@@ -3,6 +3,7 @@ var Drawing = (function() {
   var map;
   var original_title;
   var drawn_items;
+  var pathname;
 
   function drawn(annotation, type) {
     drawn_items.addLayer(annotation);
@@ -34,7 +35,7 @@ var Drawing = (function() {
     }
     $('input[name="options"]', form).val(JSON.stringify(options));
     form.submit(function() {
-      var url = location.pathname + '/annotations';
+      var url = pathname + '/annotations';
       $.post(url, $(this).serializeObject(), function(response) {
         annotation.bindPopup(response.html).openPopup();
         annotation.options.title = response.title;
@@ -61,7 +62,7 @@ var Drawing = (function() {
          map.closePopup();
        });
        form.submit(function() {
-         var url = location.pathname + '/annotations/edit';
+         var url = pathname + '/annotations/edit';
          $.post(url, $(this).serializeObject(), function(response) {
            annotation.options.title = response.title;
            annotation.bindPopup(response.html).openPopup();
@@ -80,7 +81,7 @@ var Drawing = (function() {
       });
       form.submit(function() {
         map.closePopup();
-        var url = location.pathname + '/annotations/delete';
+        var url = pathname + '/annotations/delete';
         $.post(url, $(this).serializeObject(), function(response) {
           map.removeLayer(annotation);
           Title.change_temporarily("Annotation deleted", 2, true);
@@ -88,8 +89,9 @@ var Drawing = (function() {
         return false;
       });
     },
-    setup: function(_map) {
+    setup: function(_map, fileid) {
       map = _map;
+      pathname = '/' + fileid;
 
        var drawControl = new L.Control.Draw({
           polygon: {
@@ -141,6 +143,7 @@ $.fn.serializeObject = function() {
 
 
 var Editing = (function() {
+  var pathname;
 
   function _opener() {
     $('#edit-modal').modal({
@@ -179,7 +182,7 @@ var Editing = (function() {
       description: $('#edit-modal textarea[name="description"]').val(),
       _xsrf: $('#edit-modal input[name="_xsrf"]').val()
     };
-    $.post(location.pathname + '/edit', data, function(response) {
+    $.post(pathname + '/edit', data, function(response) {
       $('#edit-modal .label-success').show(100);
       setTimeout(function() {
         $('#edit-modal .label-success:visible').fadeOut('slow');
@@ -207,7 +210,7 @@ var Editing = (function() {
 
   $('#delete-modal a.confirm').click(function() {
     var data = {_xsrf: $('#edit-modal input[name="_xsrf"]').val()};
-    $.post(location.pathname + '/delete', data, function() {
+    $.post(pathname + '/delete', data, function() {
       location.href = '/';
     });
   });
@@ -217,26 +220,29 @@ var Editing = (function() {
     return false;
   });
 
-  // prefill form
-  $.getJSON(location.pathname + '/metadata', function(response) {
-    var c = $('#edit-modal');
-    if (response.title) {
-      $('[name="title"]', c).val(response.title);
-    } else {
-      var age = $('body').data('age');
-      if (age < (60 * 60)) {
-        $('a.edit').click();
+  function _prefill_form() {
+    // prefill form
+    $.getJSON(pathname + '/metadata', function(response) {
+      var c = $('#edit-modal');
+      if (response.title) {
+        $('[name="title"]', c).val(response.title);
+      } else {
+        var age = $('body').data('age');
+        if (age < (60 * 60)) {
+          $('a.edit').click();
+        }
       }
-    }
-    if (response.description) {
-      $('[name="description"]', c).val(response.description);
-    }
-
-  });
+      if (response.description) {
+        $('[name="description"]', c).val(response.description);
+      }
+    });
+  }
 
   return {
-     setup: function(map) {
-       Drawing.setup(map);
+     setup: function(map, fileid) {
+       pathname = '/' + fileid;
+       _prefill_form();
+       Drawing.setup(map, fileid);
        // by the simple fact that this file is loaded,
        // we can show the Edit button
        $('a.leaflet-control-custom-edit').show();

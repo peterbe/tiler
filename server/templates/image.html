@@ -28,6 +28,7 @@
     {% end %}
   </head>
   <body
+  data-fileid="{{ fileid }}"
   data-image="{{ image_filename }}"
   data-range-min="{{ ranges[0] }}"
   data-range-max="{{ ranges[-1] }}"
@@ -35,6 +36,12 @@
   data-extension="{{ extension }}"
   data-age="{{ age }}"
   data-prefix="{{ prefix }}"
+  data-embedded="{{ embedded }}"
+  data-hide-annotations="{{ hide_annotations }}"
+  data-hide-download-counter="{{ hide_download_counter }}"
+  {% if default_location %}
+  data-default-location="{{ default_location }}"
+  {% end %}
   >
 
     <div id="map">
@@ -46,6 +53,10 @@
     <div id="permalink" style="display:none">
       <input name="permalink">
       <a href="#" class="close-permalink" title="Close">&times;</a>
+
+      <p>
+        <a href="{{ reverse_url('embed', fileid) }}">You can embed this on your own page</a>
+      </p>
     </div>
 
     {% module xsrf_form_html() %}
@@ -77,7 +88,7 @@
     function map_loaded_callback(map) {
       setTimeout(function() {
         head.js(modal_js_url, editing_url, draw_url, function() {
-          Editing.setup(map);
+          Editing.setup(map, '{{ fileid }}');
         });
       }, 1000);
     }

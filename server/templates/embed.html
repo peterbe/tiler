@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block page_title %}Embed picture on {{ PROJECT_TITLE }}{% end %}
+
+{% block extra_head %}
+<style>
+.sizes a {
+  float:left;
+  display:block;
+  text-align: center;
+  border:1px solid #666;
+  margin-right: 8px;
+}
+.sizes a.chosen {
+  background-color: #efefef;
+}
+</style>
+{% end %}
+
+{% block main %}
+<div class="row">
+  <div class="span12">
+     <h2>Embeddingly</h2>
+
+      <iframe id="preview" width="800" height="400"
+        src="{{ reverse_url('image_w_position', fileid, default_zoom, default_lat, default_lng) }}?embedded=1"
+        frameborder="0"></iframe>
+
+    <h4>HTML code:</h4>
+    <pre class="preview">
+    </pre>
+
+
+    <h4>Options:</h4>
+    <form>
+      <div class="sizes">
+        <a href="#" data-size="[1024,768]" style="width:230px;height:160px;padding-top:10px">1024x768</a>
+        <a href="#" class="chosen" data-size="[800,400]" style="width:180px;height:90px;padding-top:10px">800x400</a>
+        <a href="#" data-size="[480,320]" style="width:120px;height:70px;padding-top:10px">480x320</a>
+        <a href="#" data-size="[320,480]" style="width:70px;height:120px;padding-top:10px">320x480</a>
+      </div>
+      <div class="input-append">
+        <input class="span1" name="width" type="text">
+        <span class="add-on">px</span>
+      </div>
+      <div class="input-append">
+        <input class="span1" name="height" type="text">
+        <span class="add-on">px</span>
+      </div>
+
+      <br style="clear:left">
+
+    </form>
+
+
+  </div>
+</div>
+{% end %}
+
+{% block extra_js %}
+{% module ScriptTags('embed.js') %}
+{% end %}
