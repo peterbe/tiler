@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block page_title %}Popularity contest on {{ PROJECT_TITLE }}{% end %}
+
+{% block main %}
+<div class="row">
+        <div class="page-header">
+          <h2>Popularity contest (Top 10)</h2>
+        </div>
+   <div class="span4">
+        <h3>Hits This Month</h3>
+        <ol>
+          {% for number, image in this_month_hits %}
+          <li>
+          <strong>{{ number }} hits</strong>
+	  <a href="{{ reverse_url('image', image['fileid']) }}"
+          ><img class="thumbnail img-polaroid" src="{% module ThumbnailURL(image['fileid'], 100, image.get('contenttype', 'png')) %}"
+                alt="{% if image.get('title') %}{{ image['title'] }}{% else %}Screenshot{% end %}"></a>
+          </li>
+          {% end %}
+        </ol>
+    </div>
+
+   <div class="span4">
+        <h3>Total Hits</h3>
+        <ol>
+          {% for number, image in hits %}
+          <li>
+          <strong>{{ number }} hits</strong>
+	  <a href="{{ reverse_url('image', image['fileid']) }}"
+          ><img class="thumbnail img-polaroid" src="{% module ThumbnailURL(image['fileid'], 100, image.get('contenttype', 'png')) %}"
+                alt="{% if image.get('title') %}{{ image['title'] }}{% else %}Screenshot{% end %}"></a>
+          </li>
+          {% end %}
+        </ol>
+    </div>
+
+   <div class="span4">
+        <h3>Bytes Served</h3>
+        <ol>
+          {% for number, image in served %}
+          <li>
+          <strong>{% module ShowFileSize(number) %}</strong>
+	  <a href="{{ reverse_url('image', image['fileid']) }}"
+          ><img class="thumbnail img-polaroid" src="{% module ThumbnailURL(image['fileid'], 100, image.get('contenttype', 'png')) %}"
+                alt="{% if image.get('title') %}{{ image['title'] }}{% else %}Screenshot{% end %}"></a>
+          </li>
+          {% end %}
+        </ol>
+    </div>
+
+
+  </div>
+</div>
+{% end %}

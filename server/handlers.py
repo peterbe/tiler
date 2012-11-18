@@ -1657,6 +1657,90 @@ class EmbedHandler(BaseHandler):
         self.render('embed.html', **data)
 
 
+@route(r'/popularity', 'popularity')
+class PopularityHandler(BaseHandler):
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def get(self):
+        data = {}
+
+        hits_key = 'popularity:hits'
+        this_month_key = 'popularity:hits_this_month'
+        served_key = 'popularity:served'
+
+        v1 = self.redis.get(hits_key)
+        v2 = self.redis.get(this_month_key)
+        v3 = self.redis.get(served_key)
+        if v1 is not None and v2 is not None and v3 is not None:
+            hits = tornado.escape.json_decode(v1)
+            this_month = tornado.escape.json_decode(v2)
+            served = tornado.escape.json_decode(v3)
+        else:
+            lists = yield tornado.gen.Task(self._get_data)
+            hits, this_month, served = lists
+            self.redis.setex(
+                hits_key,
+                tornado.escape.json_encode(hits),
+                60 * 60
+            )
+            self.redis.setex(
+                this_month_key,
+                tornado.escape.json_encode(this_month),
+                60 * 60
+            )
+            self.redis.setex(
+                served_key,
+                tornado.escape.json_encode(served),
+                60 * 60
+            )
+
+        data['this_month_hits'] = this_month
+        data['hits'] = hits
+        data['served'] = served
+        self.render('popularity.html', **data)
+
+    @tornado.gen.engine
+    def _get_data(self, callback):
+        _now = datetime.datetime.utcnow()
+
+        this_month = []
+        hits = []
+        bytes = []
+        cursor = self.db.images.find({}, ('fileid', 'title'))
+        image = yield motor.Op(cursor.next_object)
+        while image:
+            image = {'fileid': image['fileid'],
+                     'title': image.get('title')}
+            fileid = image['fileid']
+            hit_key = 'hits:%s' % fileid
+            hit_month_key = (
+                'hits:%s:%s:%s' %
+                (_now.year, _now.month, fileid)
+            )
+            number = self.redis.get(hit_key)
+            if number is not None:
+                hits.append((int(number), image))
+            number = self.redis.get(hit_month_key)
+            if number is not None:
+                this_month.append((int(number), image))
+            number = self.redis.hget('bytes_served', fileid)
+            if number is not None:
+                bytes.append((int(number), image))
+            image = yield motor.Op(cursor.next_object)
+
+        hits.sort(reverse=True)
+        this_month.sort(reverse=True)
+        bytes.sort(reverse=True)
+
+        hits = hits[:10]
+        this_month = this_month[:10]
+        bytes = bytes[:10]
+
+        callback((hits, this_month, bytes))
+
+
+
 # this handler gets automatically appended last to all handlers inside app.py
 class PageNotFoundHandler(BaseHandler):
 
