@@ -8,6 +8,13 @@
 
   <div class="span12">
     <h2>Image <a href="{{ reverse_url('image', image['fileid']) }}">{{ request.protocol }}://{{ request.host }}{{ reverse_url('image', image['fileid']) }}</a></h2>
+
+    <div style="float:right">
+	  <a href="{{ reverse_url('image', image['fileid']) }}"
+          ><img class="thumbnail img-polaroid" src="{% module ThumbnailURL(image['fileid'], 100, image.get('contenttype', 'png')) %}" alt="Screenshot"></a>
+
+    </div>
+
     <dl         class="dl-horizontal">
       <dt>Tiles:</dt>
       <dd>
