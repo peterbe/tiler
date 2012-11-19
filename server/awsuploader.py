@@ -1,7 +1,10 @@
 import stat
 import warnings
+import datetime
 import random
 import os
+import time
+import email
 import motor
 import pymongo
 import logging
@@ -76,6 +79,7 @@ def upload_all_tiles(fileid, static_path, bucket_id, max_count=0,
         #else:
         #    total = len(all_tiles)
         total = len(all_tiles)
+        aggressive_headers = get_aggressive_headers()
         for each in all_tiles:
             # load which ones we've done every time to prevent
             # parallel workers uploading the same file more than once
@@ -100,7 +104,8 @@ def upload_all_tiles(fileid, static_path, bucket_id, max_count=0,
                 k.set_contents_from_filename(
                     each,
                     replace=replace,
-                    reduced_redundancy=True
+                    reduced_redundancy=True,
+                    headers=aggressive_headers,
                 )
                 k.make_public()
                 open(log_file, 'a').write(each + '\n')
@@ -136,6 +141,19 @@ def upload_all_tiles(fileid, static_path, bucket_id, max_count=0,
     finally:
         print "# done", count
         IOLoop.instance().stop()
+
+
+def get_aggressive_headers(years=2):
+    cache_control = 'max-age=%d, public' % (3600 * 24 * 360 * years)
+    _delta = datetime.timedelta(days=365 * years)
+    expires = email.Utils.formatdate(
+        time.mktime((datetime.datetime.utcnow() + _delta).timetuple())
+    )
+
+    return {
+        'Cache-Control': cache_control,
+        'Expires': expires,
+    }
 
 
 def upload_tiles(fileid, static_path, max_count=10,
