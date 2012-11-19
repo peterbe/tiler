@@ -402,7 +402,7 @@ $(function() {
   }
   map
     .attributionControl
-    .setPrefix('Powered by <a href="' + attribution_url + '">HUGEpic.io</a>');
+    .setPrefix('Powered by <a href="' + attribution_url + '" target="_blank">HUGEpic.io</a>');
 
   Hashing.setup(map, fileid, default_zoom, default_location);
   if (!embedded) {
