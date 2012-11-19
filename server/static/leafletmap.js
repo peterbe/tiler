@@ -330,6 +330,13 @@ var CustomButtons = (function() {
                   this.handle_edit,
                   false);
 
+      make_button(container,
+                  'leaflet-control-custom-comment',
+                  "Submit a comment about what you see",
+                  '#',
+                  this.handle_comment,
+                  true);
+
       return container;
     },
     handle_fullscreen: function() {
@@ -351,7 +358,12 @@ var CustomButtons = (function() {
     handle_edit: function() {
       Editing.open();
       return false;
+    },
+    handle_comment: function() {
+      Commenting.open();
+      return false;
     }
+
   });
 
   return {

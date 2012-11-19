@@ -80,6 +80,9 @@ input.button-primary {
 input.button-cancel {
   font-size: 0.8em;
 }
+input.error, textarea.error {
+  border: 1px solid red;
+}
 
 #track-stats {
   left: 0; bottom: 0;
@@ -165,4 +168,30 @@ a.leaflet-control-custom-unfullscreen {
 a.leaflet-control-custom-edit {
   background-position:-52px 0px;
   width:26px;height:26px;
+}
+
+a.leaflet-control-custom-comment {
+  background-image: url(../images/control-icons/comment.png);
+  background-repeat: no-repeat;
+  width:26px;height:26px;
+}
+
+#comment-modal div.comment {
+  border-bottom: 1px solid #efefef;
+  padding: 10px;
+}
+#comment-modal .comments-outer blockquote {
+  margin: 10px;
+  font-style: italic;
+}
+#comment-modal .comments-outer div p {
+  font-size: 80%;
+}
+#comment-modal .comments-outer a.pan-to {
+  font-size: 80%;
+  float: right;
+}
+#comment-modal .not-signed-in p {
+  text-align: center;
+  margin: 20px;
 }
