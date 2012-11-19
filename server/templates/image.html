@@ -12,7 +12,7 @@
     {% end %}
     <title>{{ page_title }} on {{ PROJECT_TITLE }}</title>
 
-    {% if can_edit %}
+    {% if can_edit or can_comment %}
     {% module LinkTags('bootstrap/css/bootstrap.min.css', 'bootstrap/css/bootstrap-modal.min.css', 'css/libs/leaflet.draw.css') %}
     {% end %}
 
@@ -61,6 +61,9 @@
 
     {% module xsrf_form_html() %}
 
+    {% if can_comment %}
+    {% include "_comment_modal.html" %}
+    {% end %}
     {% if can_edit %}
     {% include "_edit_modal.html" %}
     {% include "_delete_modal.html" %}
@@ -77,22 +80,30 @@
     var MARKER_SHADOW_URL = '{{ static_url('libs/images/marker-shadow.png') }}',
         MARKER_ICON_URL = '{{ static_url('libs/images/marker-icon.png') }}';
     </script>
-    {% module ScriptTags('libs/leaflet.min.js', 'leafletmap.js') %}
-
-    {% if can_edit %}
-    {% module ScriptTags('libs/head.load.min.js') %}
+    {% module ScriptTags('libs/leaflet.min.js', 'leafletmap.js', 'libs/head.load.min.js') %}
     <script>
     var modal_js_url = '{% module StaticURL('bootstrap/js/bootstrap-modal.min.js') %}';
+    {% if can_comment %}
+    var comment_url = '{% module StaticURL('comment.js') %}';
+    {% end %}
+    {% if can_edit %}
     var editing_url = '{% module StaticURL('edit.js') %}';
     var draw_url = '{% module StaticURL('libs/leaflet.draw.min.js') %}';
+    {% end %}
     function map_loaded_callback(map) {
       setTimeout(function() {
+        {% if can_edit %}
         head.js(modal_js_url, editing_url, draw_url, function() {
           Editing.setup(map, '{{ fileid }}');
         });
+	{% end %}
+	{% if can_comment %}
+        head.js(modal_js_url, comment_url, function() {
+          Commenting.setup(map, '{{ fileid }}');
+        });
+	{% end %}
       }, 1000);
     }
     </script>
-    {% end %}
   </body>
 </html>

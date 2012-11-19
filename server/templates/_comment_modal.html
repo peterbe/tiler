@@ -1,0 +1,31 @@
+<div id="comment-modal" class="modal hide fade">
+  <div class="modal-header">
+    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+    <h3 class="comment">Comment</h3>
+    <h3 class="comments" style="display:none">Comments (<strong></strong>)</h3>
+  </div>
+  <div class="modal-body">
+    <p class="comments-hider" style="float:right">
+      <a href="#" class="show" title="Click to see existing comments">Show <strong></strong> comments</a>
+      <a href="#" class="hide" style="display:none" title="Close">Close</a>
+    </p>
+    <div class="comments-outer" style="display:none">
+
+    </div>
+    <div style="display:none" class="not-signed-in">
+      <p>
+        <a href="/">You must be signed in to post comments &raquo;</a>
+      </p>
+    </div>
+    <form>
+      {% module xsrf_form_html() %}
+      <input type="text" name="name" placeholder="Your name" class="input-xlarge" maxlength="100">
+      <textarea name="comment" class="input-xlarge" rows="3"></textarea>
+    </form>
+  </div>
+  <div class="modal-footer">
+    <span class="label label-success" style="display:none">Comment saved!</span>
+    <a href="#" class="btn btn-primary">Submit comment</a>
+    <a href="#" class="btn closer">Close</a>
+  </div>
+</div>

@@ -19,6 +19,7 @@ import tornado.curl_httpclient
 import tornado.ioloop
 from PIL import Image
 from tornado_utils.routes import route
+from tornado_utils.timesince import smartertimesince
 from rq import Queue
 import motor
 from utils import (
@@ -491,6 +492,9 @@ class ImageHandler(BaseHandler):
                 _range += 1
 
         can_edit = self.get_current_user() == owner and not embedded
+        #can_comment = self.get_current_user() and not embedded
+        # one day, perhaps make it depend on a setting on the picture
+        can_comment = not embedded
 
         if content_type == 'image/jpeg':
             extension = 'jpg'
@@ -559,6 +563,7 @@ class ImageHandler(BaseHandler):
             default_zoom=default_zoom,
             extension=extension,
             can_edit=can_edit,
+            can_comment=can_comment,
             age=age,
             og_image_url=og_image_url,
             prefix=cdn_domain and '//' + cdn_domain or '',
@@ -651,6 +656,97 @@ class ImageMetadataHandler(BaseHandler):
         self.write(data)
         self.finish()
 
+
+@route('/(\w{9})/commenting', 'image_commenting')
+class ImageCommentingHandler(BaseHandler):
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def get(self, fileid):
+        current_user = self.get_current_user()
+        #if not current_user:
+        #    raise tornado.web.HTTPError(403, "Not logged in")
+        document = yield motor.Op(
+            self.db.images.find_one,
+            {'fileid': fileid}
+        )
+        if not document:
+            raise tornado.web.HTTPError(404, "Image not found")
+
+        data = {}
+        if current_user:
+            name = self.redis.hget('name', current_user)
+            if name is not None:
+                data['name'] = name
+        data['comments'] = yield tornado.gen.Task(
+            self.get_comments,
+            document['_id'],
+        )
+        data['count'] = len(data['comments'])
+        self.write(data)
+        self.finish()
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def post(self, fileid):
+        current_user = self.get_current_user()
+        if not current_user:
+            raise tornado.web.HTTPError(403, "Not logged in")
+        document = yield motor.Op(
+            self.db.images.find_one,
+            {'fileid': fileid}
+        )
+        if not document:
+            raise tornado.web.HTTPError(404, "Image not found")
+
+        name = self.get_argument('name').strip()
+        comment = self.get_argument('comment').strip()
+        zoom = int(self.get_argument('zoom'))
+        lat = float(self.get_argument('lat'))
+        lng = float(self.get_argument('lng'))
+
+        comment_ = {
+            'image': document['_id'],
+            'user': current_user,
+            'name': name,
+            'comment': comment,
+            'zoom': zoom,
+            'center': [lat, lng],
+            'approved': document['user'] == current_user,
+            'date': datetime.datetime.utcnow(),
+        }
+        _id = yield motor.Op(
+            self.db.comments.insert,
+            comment_,
+            safe=False
+        )
+        self.redis.hset('name', current_user, name)
+        comments = yield tornado.gen.Task(
+            self.get_comments,
+            document['_id'],
+        )
+        self.write({'comments': comments})
+        self.finish()
+
+    @tornado.gen.engine
+    def get_comments(self, _id, callback):
+        comments = []
+        cursor = self.db.comments.find({'image': _id})
+        comment = yield motor.Op(cursor.next_object)
+        _now = datetime.datetime.utcnow()
+        while comment:
+            comments.append({
+                'html': self.get_comment_html(comment),
+                'center': comment['center'],
+                'name': tornado.escape.xhtml_escape(comment['name']),
+                'zoom': comment['zoom'],
+                'ago': smartertimesince(comment['date'], _now),
+            })
+            comment = yield motor.Op(cursor.next_object)
+        callback(comments)
+
+    def get_comment_html(self, comment):
+        return tornado.escape.linkify(comment['comment'])
 
 @route('/(\w{9})/edit', 'image_edit')
 class ImageEditHandler(BaseHandler):
