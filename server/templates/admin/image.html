@@ -22,6 +22,12 @@
         {{ image['found_tiles'] }}
         /
         {{ image['expected_tiles'] }}</a>
+        {% if not awsupdating_locked %}
+        <form action="{{ reverse_url('admin_aws_update', image['fileid']) }}" method="post">
+        <button class="btn btn-mini" type="submit">update AWS metadata</button>
+        </form>
+        {% end %}
+
         {% if image['too_few_tiles'] %}
         <form action="{{ reverse_url('admin_prepare_all_tiles', image['fileid']) }}" method="post">
         <button class="btn btn-mini" type="submit">re-submit</button>

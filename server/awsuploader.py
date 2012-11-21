@@ -39,6 +39,43 @@ def upload_original(fileid, extension, static_path, bucket_id):
         print "Original can't be found", repr(original)
 
 
+def update_tiles_metadata(tile_paths, years=1, max_updates=10, suffix=None):
+    conn = S3Connection(settings.AWS_ACCESS_KEY, settings.AWS_SECRET_KEY)
+    bucket = conn.lookup(settings.TILES_BUCKET_ID)
+
+    for tile_path in tile_paths:
+        key = bucket.get_key(tile_path)
+        if key is None:
+            logging.warning("%r is not found as a key" % tile_path)
+            return
+
+        aggressive_headers = _get_aggressive_cache_headers(key, years)
+        key.copy(
+            settings.TILES_BUCKET_ID,
+            key,
+            metadata=aggressive_headers,
+            preserve_acl=True
+        )
+        print key, "DONE"
+
+
+def _get_aggressive_cache_headers(key, years):
+    metadata = key.metadata
+
+    metadata['Content-Type'] = key.content_type
+
+    # HTTP/1.0
+    metadata['Expires'] = '%s GMT' %\
+        (email.Utils.formatdate(
+            time.mktime((datetime.datetime.now() +
+            datetime.timedelta(days=365 * years)).timetuple())))
+
+    # HTTP/1.1
+    metadata['Cache-Control'] = 'max-age=%d, public' % (3600 * 24 * 360 * years)
+
+    return metadata
+
+
 @gen.engine
 def upload_all_tiles(fileid, static_path, bucket_id, max_count=0,
                      only_if_no_cdn_domain=False,
@@ -143,7 +180,7 @@ def upload_all_tiles(fileid, static_path, bucket_id, max_count=0,
         IOLoop.instance().stop()
 
 
-def get_aggressive_headers(years=2):
+def get_aggressive_headers(years=1):
     cache_control = 'max-age=%d, public' % (3600 * 24 * 360 * years)
     _delta = datetime.timedelta(days=365 * years)
     expires = email.Utils.formatdate(

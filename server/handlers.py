@@ -518,7 +518,7 @@ class ImageHandler(BaseHandler):
                     self.application.settings['static_path']
                 )
                 self.redis.setex(lock_key, time.time(), 60 * 60)
-                q = Queue(connection=self.redis)
+                q = Queue('low', connection=self.redis)
                 logging.info("About to upload %s tiles" % _no_tiles)
                 # bulk the queue workers with 100 each
                 for i in range(_no_tiles / 100 + 1):

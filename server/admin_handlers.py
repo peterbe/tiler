@@ -2,16 +2,18 @@ import datetime
 import urllib
 import time
 import os
+import logging
 import tornado.web
 import tornado.gen
 from PIL import Image
 from tornado_utils.routes import route
+from rq import Queue
 import motor
 
 from handlers import BaseHandler, TileMakerMixin
-from utils import count_all_tiles, find_original
+from utils import count_all_tiles, find_all_tiles, find_original
+from awsuploader import update_tiles_metadata
 import settings
-
 
 class AdminBaseHandler(BaseHandler):
 
@@ -238,9 +240,12 @@ class AdminImageHandler(AdminBaseHandler):
             except ValueError:
                 pass
 
+        awsupdating_key = 'awsupdated:%s' % fileid
+        awsupdating_locked = self.redis.get(awsupdating_key) is not None
         data = {
             'image': image,
             'uploading_locked': uploading_locked,
+            'awsupdating_locked': awsupdating_locked,
         }
 
         self.render('admin/image.html', **data)
@@ -556,6 +561,65 @@ class AdminResendEmailHandler(AdminBaseHandler, TileMakerMixin):
             total_delay += delay
             if total_delay > 3:
                 break
+
+        url = self.reverse_url('admin_image', fileid)
+        self.redirect(url)
+
+
+@route('/admin/(?P<fileid>\w{9})/aws/update/',
+       name='admin_aws_update')
+class AdminAWSUpdateHandler(AdminBaseHandler):
+
+    def check_xsrf_cookie(self):
+        pass
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def post(self, fileid):
+
+        image = yield motor.Op(
+            self.db.images.find_one,
+            {'fileid': fileid}
+        )
+        if not image:
+            raise tornado.web.HTTPError(404, "File not found")
+
+        all_tiles = find_all_tiles(
+            fileid,
+            self.application.settings['static_path']
+        )
+        count = 0
+        q = Queue('low', connection=self.redis)
+        years = int(self.get_argument('years', 1))
+
+        buckets = []
+        bucket = []
+        for tile in all_tiles:
+            tile_path = tile.replace(self.application.settings['static_path'], '')
+            if tile_path.startswith('/'):
+                tile_path = tile_path[1:]
+            bucket.append(tile_path)
+            if len(bucket) > 10:
+                buckets.append(bucket)
+                bucket = []
+        if bucket:
+            buckets.append(bucket)
+
+        for tile_paths in buckets:
+            q.enqueue(
+                update_tiles_metadata,
+                tile_paths,
+                years=years,
+            )
+            count += 1
+
+        logging.info("Put %d tiles on the AWS update queue" % count)
+
+        self.redis.setex(
+            'awsupdated:%s' % fileid,
+            time.time(),
+            60 * 60 * 24 * 360 * years
+        )
 
         url = self.reverse_url('admin_image', fileid)
         self.redirect(url)
