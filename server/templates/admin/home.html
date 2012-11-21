@@ -11,7 +11,8 @@
     {% if total_bytes_served %}
     Total served data: {% module ShowFileSize(total_bytes_served) %}<br>
     {% end %}
-    Total hits: {% module Thousands(total_hits) %}
+    Total hits: {% module Thousands(total_hits) %}<br>
+    Total comments: {% module Thousands(total_comments) %}
     </h4>
     <table class="table table-condensed">
     <thead>
@@ -24,6 +25,7 @@
         <td>Size</td>
         <td>Width</td>
         <td>Ranges</td>
+        <td><abbr title="Comments">Cmts</abbr></td>
         <td>Hits</td>
         <td>Served</td>
         <td># tiles</td>
@@ -61,6 +63,11 @@
           {% end %}
       </td>
       <td>{{ ','.join(str(int(x)) for x in image['ranges']) }}</td>
+      <td>
+        {% if image.get('comments') %}
+        {{ image['comments'] }}
+        {% else %}0{% end %}
+      </td>
       <td>
         {% if image.get('hits') %}
         {% module Thousands(image['hits']) %}

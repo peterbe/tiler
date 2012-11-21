@@ -98,6 +98,9 @@ class AdminBaseHandler(BaseHandler):
         image['hits'] = self.redis.get(hit_key)
         image['hits_this_month'] = self.redis.get(hit_month_key)
 
+    def attach_comments_info(self, image):
+        image['comments'] = self.redis.hget('comments', image['fileid'])
+
 
 @route('/admin/', name='admin_home')
 class AdminHomeHandler(AdminBaseHandler):
@@ -168,6 +171,10 @@ class AdminHomeHandler(AdminBaseHandler):
                 total_hits += int(hits)
                 image['hits'] = int(hits)
             _shown_image_ids.append(image['_id'])
+            comments = self.redis.hget('comments', image['fileid'])
+            if comments is not None:
+                comments = int(comments)
+                image['comments'] = comments
             images.append(image)
             image = yield motor.Op(cursor.next_object)
 
@@ -202,7 +209,8 @@ class AdminHomeHandler(AdminBaseHandler):
             image = yield motor.Op(cursor.next_object)
         data['total_bytes_served'] = total_bytes_served
         data['total_hits'] = total_hits
-
+        total_comments = yield motor.Op(self.db.comments.find().count)
+        data['total_comments'] = total_comments
         self.render('admin/home.html', **data)
 
 
@@ -221,6 +229,7 @@ class AdminImageHandler(AdminBaseHandler):
 
         self.attach_tiles_info(image)
         self.attach_hits_info(image)
+        self.attach_comments_info(image)
         served = self.redis.hget('bytes_served', image['fileid'])
         if served is not None:
             image['bytes_served'] = int(served)
@@ -599,7 +608,7 @@ class AdminAWSUpdateHandler(AdminBaseHandler):
             if tile_path.startswith('/'):
                 tile_path = tile_path[1:]
             bucket.append(tile_path)
-            if len(bucket) > 30:
+            if len(bucket) > 50:
                 buckets.append(bucket)
                 bucket = []
         if bucket:

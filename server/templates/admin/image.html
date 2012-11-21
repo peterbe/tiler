@@ -103,6 +103,14 @@
         {% else %}0{% end %}
       </dd>
 
+      <dt>Comments:</dt>
+      <dd>
+        {% if image['comments'] %}
+        {{ image['comments'] }}
+        {% else %}0
+        {% end %}
+      </dd>
+
       <dt>Hits:</dt>
       <dd>
         {{ image['hits'] }}
