@@ -16,16 +16,7 @@
             {% end %}
             uploaded {% module TimeSince(image['date']) %} ago<br>
 
-            <!--hits:{{ image['fileid'] }}-->
-            {% if 0 %}
-            {% if image['hits'] %}
-            {% module Thousands(image['hits']) %} hits
-              {% if image['hits_this_month'] and image['hits_this_month'] != image['hits'] %}
-              ({% module Thousands(image['hits_this_month']) %} this month)
-              {% end %}
-            <br>
-            {% end %}
-            {% end %}
+            <!--extra:{{ image['fileid'] }}-->
 
             <a class="url" href="{{ reverse_url('image', image['fileid']) }}">Check it out &raquo;</a>
           </p>

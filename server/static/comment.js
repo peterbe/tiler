@@ -96,13 +96,14 @@ var Commenting = (function() {
       $('.label-success', container).show(100);
       setTimeout(function() {
         $('.label-success:visible', container).fadeOut('slow');
-        $.getJSON(pathname + '/commenting', function(response) {
-          _load_comments(response.comments);
-          $('.comments-hider a.show strong', container).text(response.count);
-          $('h3.comments strong', container).text(response.count);
-          $('.comments-hider a.show', container).click();
-        });
       }, 3 * 1000);
+      $.getJSON(pathname + '/commenting', function(response) {
+        _load_comments(response.comments);
+        $('.comments-hider a.show strong', container).text(response.count);
+        $('h3.comments strong', container).text(response.count);
+        $('.comments-hider a.show', container).click();
+      });
+
     });
     return false;
   });

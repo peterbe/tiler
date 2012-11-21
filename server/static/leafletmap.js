@@ -30,8 +30,6 @@ var Hashing = (function() {
 
   function setHash(zoom, lat, lng) {
     var state = {zoom: zoom, lat: lat, lng: lng};
-    //var state = {};
-
     history.replaceState(state, 'page', getURL(zoom, lat, lng));
   }
 

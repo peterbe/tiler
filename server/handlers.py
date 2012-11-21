@@ -213,7 +213,7 @@ class ThumbnailGridRendererMixin(object):
         callback((self.render_string('_thumbnail_grid.html', **data), count))
 
 
-hits_html_regex = re.compile('<!--hits:(\w+)-->')
+extra_html_regex = re.compile('<!--extra:(\w+)-->')
 
 
 @route('/', name='home')
@@ -367,7 +367,15 @@ class HomeHandler(BaseHandler, ThumbnailGridRendererMixin):
             hits_this_month = (
                 self.redis.get(hit_month_key)
             )
-            if hits:
+            comments = self.redis.hget('comments', fileid)
+            if comments is not None:
+                comments = int(comments)
+                if comments == 1:
+                    comments = '1 comment'
+                else:
+                    comments = '%d comments' % comments
+            html = match.group()
+            if hits or comments:
                 hits = int(hits)
                 if hits == 1:
                     h = '1 hit'
@@ -382,9 +390,11 @@ class HomeHandler(BaseHandler, ThumbnailGridRendererMixin):
                             ' (%s hits this month)' %
                             format(hits_this_month, ',')
                         )
-                return h + '<br>'
-            return match.group()
-        html = hits_html_regex.sub(replacer, html)
+                if comments:
+                    h += ', %s' % comments
+                html = h + '<br>'
+            return html
+        html = extra_html_regex.sub(replacer, html)
         return html
 
 
@@ -683,6 +693,7 @@ class ImageCommentingHandler(BaseHandler):
             document['_id'],
         )
         data['count'] = len(data['comments'])
+        data['signed_in'] = bool(self.get_current_user())
         self.write(data)
         self.finish()
 
@@ -720,6 +731,7 @@ class ImageCommentingHandler(BaseHandler):
             comment_,
             safe=False
         )
+        self.redis.hincrby('comments', fileid, 1)
         self.redis.hset('name', current_user, name)
         comments = yield tornado.gen.Task(
             self.get_comments,
