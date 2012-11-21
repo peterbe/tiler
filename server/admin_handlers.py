@@ -599,7 +599,7 @@ class AdminAWSUpdateHandler(AdminBaseHandler):
             if tile_path.startswith('/'):
                 tile_path = tile_path[1:]
             bucket.append(tile_path)
-            if len(bucket) > 10:
+            if len(bucket) > 30:
                 buckets.append(bucket)
                 bucket = []
         if bucket:
