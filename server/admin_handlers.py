@@ -1,3 +1,4 @@
+import stat
 import datetime
 import urllib
 import time
@@ -525,7 +526,7 @@ class AdminLockAWSUploadHandler(AdminBaseHandler):
         self.redirect(url)
 
 
-@route('/admin/(?P<fileid>\w{9})/tiles/resend/',
+@route('/admin/(?P<fileid>\w{9})/resend/',
        name='admin_resend_email')
 class AdminResendEmailHandler(AdminBaseHandler, TileMakerMixin):
 
@@ -629,6 +630,50 @@ class AdminAWSUpdateHandler(AdminBaseHandler):
             time.time(),
             60 * 60 * 24 * 360 * years
         )
+
+        url = self.reverse_url('admin_image', fileid)
+        self.redirect(url)
+
+
+@route('/admin/(?P<fileid>\w{9})/recalculate/size/',
+       name='admin_recalculate_size')
+class AdminRecalculateSizeHandler(AdminBaseHandler):
+
+    def check_xsrf_cookie(self):
+        pass
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def post(self, fileid):
+
+        image = yield motor.Op(
+            self.db.images.find_one,
+            {'fileid': fileid}
+        )
+        if not image:
+            raise tornado.web.HTTPError(404, "File not found")
+
+        if image['contenttype'] == 'image/jpeg':
+            extension = 'jpg'
+        elif image['contenttype'] == 'image/png':
+            extension = 'png'
+        else:
+            raise NotImplementedError
+        original = find_original(
+            image['fileid'],
+            self.application.settings['static_path'],
+            extension,
+        )
+        size = os.stat(original)[stat.ST_SIZE]
+
+        yield motor.Op(
+            self.db.images.update,
+            {'_id': image['_id']},
+            {'$set': {'size': size}}
+        )
+
+        metadata_key = 'metadata:%s' % fileid
+        self.redis.delete(metadata_key)
 
         url = self.reverse_url('admin_image', fileid)
         self.redirect(url)

@@ -89,7 +89,15 @@
             {% module Thousands(image['width']) %} &times; {% module Thousands(image['height']) %}<br>
           {% end %}
       </dd>
-      <dd>{% module ShowFileSize(image['size']) %}</dd>
+      <dd>
+        {% module ShowFileSize(image['size']) %}
+	<a href="#" class="recalculatesize" style="font-size:.8em">recalculate</a>
+        <form class="recalculatesize" style="display:none"
+              action="{{ reverse_url('admin_recalculate_size', image['fileid']) }}"
+              method="post">
+        <button class="btn btn-mini" type="submit">recalculate</button>
+        </form>
+      </dd>
 
       <dt>Ranges:</dt>
       <dd>
@@ -151,11 +159,13 @@
 <script>
 $(function() {
   $('a.resend').click(function() {
-    if ($('form.resend:visible').size()) {
-      $('form.resend').hide();
-    } else {
-      $('form.resend').show();
-    }
+    $('form.resend').toggle();
+    return false;
+  });
+
+  $('a.recalculatesize').click(function() {
+    $('form.recalculatesize').toggle();
+    return; false;
   });
 });
 </script>
