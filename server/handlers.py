@@ -1756,11 +1756,17 @@ class EmbedHandler(BaseHandler):
         )
         if not document:
             raise tornado.web.HTTPError(404, "File not found")
+
+        search = {'image': document['_id']}
+        count_annotations = yield motor.Op(
+            self.db.annotations.find(search).count
+        )
         data = {
             'fileid': fileid,
             'default_zoom': self.DEFAULT_ZOOM,
             'default_lat': self.DEFAULT_LAT,
             'default_lng': self.DEFAULT_LNG,
+            'count_annotations': count_annotations,
         }
         self.render('embed.html', **data)
 

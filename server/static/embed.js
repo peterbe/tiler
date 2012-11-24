@@ -38,8 +38,10 @@ var Embed = (function() {
     }
   }
 
-  function preview_html() {
-    var url = iframe[0].contentWindow.location.href;
+  function preview_html(url) {
+    if (!url) {
+      url = iframe[0].contentWindow.location.href;
+    }
     if (last_size === null) {
       last_size = [parseInt(iframe.attr('width')), parseInt(iframe.attr('height'))];
     }
@@ -47,7 +49,28 @@ var Embed = (function() {
     var html = '<iframe width="' + size[0] + '" height="' + size[1] + '" ';
     html += 'src="' + url + '" frameborder="0"></iframe>';
     $('.preview').text(html);
+  }
 
+  function toggle_hide_annotations() {
+    var url = iframe[0].contentWindow.location.href;
+    if (url.search(/hide_annotations=\d/) == -1) {
+      var new_url = url + '&hide_annotations=0';
+    } else {
+      var new_url = url.replace('&hide_annotations=0', '');
+    }
+    iframe[0].contentWindow.location.href = new_url;
+    preview_html(new_url);
+  }
+
+  function toggle_hide_download_counter() {
+    var url = iframe[0].contentWindow.location.href;
+    if (url.search(/hide_download_counter=\d/) == -1) {
+      var new_url = url + '&hide_download_counter=0';
+    } else {
+      var new_url = url.replace('&hide_download_counter=0', '');
+    }
+    iframe[0].contentWindow.location.href = new_url;
+    preview_html(new_url);
   }
 
   return {
@@ -58,6 +81,19 @@ var Embed = (function() {
          resize_choice($(this).data('size'));
          return false;
        });
+       $('input[name="show_annotations"]').change(function() {
+         toggle_hide_annotations();
+       });
+       if ($('input[name="show_annotations"]:checked').size()) {
+         toggle_hide_annotations();
+       }
+
+       $('input[name="show_download_counter"]').change(function() {
+         toggle_hide_download_counter();
+       });
+       if ($('input[name="show_download_counter"]:checked').size()) {
+         toggle_hide_download_counter();
+       }
 
        $('input[name="width"], input[name="height"]').change(update_custom_numbers);
        $('input[name="width"]').val(iframe.attr('width'));

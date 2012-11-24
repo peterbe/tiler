@@ -31,8 +31,8 @@
     </pre>
 
 
-    <h4>Options:</h4>
     <form>
+      <h4>Size:</h4>
       <div class="sizes">
         <a href="#" data-size="[1024,768]" style="width:230px;height:160px;padding-top:10px">1024x768</a>
         <a href="#" class="chosen" data-size="[800,400]" style="width:180px;height:90px;padding-top:10px">800x400</a>
@@ -49,6 +49,19 @@
       </div>
 
       <br style="clear:left">
+
+      <h4>Options:</h4>
+      <label class="checkbox">
+        <input type="checkbox" name="show_annotations" value="1">
+        <strong>Show annotations</strong> (<span class="count-annotations"
+        >{% if count_annotations %}{{ count_annotations }}{% else %}none at the moment{% end %}</span>)
+      </label>
+      <label class="checkbox">
+        <input type="checkbox" name="show_download_counter" value="1">
+        <strong>Show download counter</strong>
+        (the little size counter in the lower left-hand corner)
+      </label>
+
 
     </form>
 
