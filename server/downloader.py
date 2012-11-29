@@ -4,6 +4,11 @@ import functools
 import pycurl
 
 
+def slow_writer(f, buf):
+    from time import sleep
+    sleep(0.1)
+    f.write(buf)
+
 def download(url, destination,
             follow_redirects=True, request_timeout=600):
     _error = _effective_url = None
@@ -14,6 +19,7 @@ def download(url, destination,
         c.setopt(pycurl.FOLLOWLOCATION, follow_redirects)
         c.setopt(pycurl.HEADERFUNCTION, hdr.write)
         c.setopt(pycurl.WRITEFUNCTION, destination_file.write)
+        #c.setopt(pycurl.WRITEFUNCTION, functools.partial(slow_writer, destination_file))
         c.setopt(pycurl.TIMEOUT_MS, int(1000 * request_timeout))
         c.perform()
         code = c.getinfo(pycurl.HTTP_CODE)

@@ -10,10 +10,7 @@
     <title>{% block page_title %}{{ PROJECT_TITLE }}{% end %}</title>
 
     {% module LinkTags('bootstrap/css/bootstrap.min.css', 'bootstrap/css/bootstrap-responsive.min.css') %}
-    <!--<link href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.1.1/css/bootstrap-combined.min.css" rel="stylesheet">-->
     {% module LinkTags('css/libs/persona-buttons.css', 'css/app.css') %}
-    <style type="text/css">
-    </style>
 
     <!-- IE Fix for HTML5 Tags -->
     <!--[if lt IE 9]>
@@ -54,6 +51,7 @@
                         <ul class="dropdown-menu">
                             <li><a href="/?user={{ user }}"><i class="icon-upload"></i> Your uploads</a></li>
 			    {#<li><a href="/preferences"><i class="icon-cog"></i> Preferences</a></li>#}
+                            <li><a href="/api"><i class="icon-download-alt"></i> Developers' API</a></li>
                             <li class="divider"></li>
                             <li><a href="#" class="signout"><i class="icon-off"></i> Sign out</a></li>
                         </ul>

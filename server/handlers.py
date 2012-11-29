@@ -82,9 +82,8 @@ class BaseHandler(tornado.web.RequestHandler):
         if d_url.startswith('//'):
             default = '%s:%s' % (self.request.protocol, d_url)
         else:
-            default = '%s://%s%s' % (self.request.protocol,
-                                     self.request.host,
-                                     d_url)
+
+            default = '%s%s' % (self.base_url, d_url)
         # nasty hack so that gravatar can serve a default
         # icon when on a local URL
         default = default.replace('http://tiler/', 'http://hugepic.io/')
@@ -133,9 +132,7 @@ class BaseHandler(tornado.web.RequestHandler):
         if cdn_prefix:
             url = cdn_prefix + url
         elif absolute_url:
-            url = '%s://%s%s' % (self.request.protocol,
-                                 self.request.host,
-                                 url)
+            url = '%s%s' % (self.base_url, url)
         return url
 
     def clear_thumbnail_grid_cache(self):
@@ -172,6 +169,7 @@ class BaseHandler(tornado.web.RequestHandler):
         if content_type is None:
             content_type = self.redis.get('contenttype:%s' % fileid)
         # complete it with the extension
+
         if content_type == 'image/png':
             destination += '.png'
         else:
@@ -179,6 +177,10 @@ class BaseHandler(tornado.web.RequestHandler):
             destination += '.jpg'
 
         return destination
+
+    @property
+    def base_url(self):
+        return '%s://%s' % (self.request.protocol, self.request.host)
 
 
 class ThumbnailGridRendererMixin(object):
@@ -762,24 +764,27 @@ class ImageCommentingHandler(BaseHandler):
     def get_comment_html(self, comment):
         return tornado.escape.linkify(comment['comment'])
 
-@route('/(\w{9})/edit', 'image_edit')
-class ImageEditHandler(BaseHandler):
 
-    @tornado.web.asynchronous
+class ImageMetadataMixin(object):
+
     @tornado.gen.engine
-    def post(self, fileid):
-        current_user = self.get_current_user()
-        if not current_user:
-            raise tornado.web.HTTPError(403, "Not logged in")
-
-        title = self.get_argument('title', u'')
-        description = self.get_argument('description', u'')
+    def run_edit(self, fileid, current_user, callback):
         document = yield motor.Op(
             self.db.images.find_one,
             {'fileid': fileid}
         )
+        if not document:
+            raise tornado.web.HTTPError(404, fileid)
         if document['user'] != current_user:
             raise tornado.web.HTTPError(403, "Not yours to edit")
+
+        title = self.get_argument('title', u'')
+        description = self.get_argument('description', u'')
+
+        if len(title) > 200:
+            raise tornado.web.HTTPError(400, "title max. 200 characters")
+        if len(description) > 1000:
+            raise tornado.web.HTTPError(400, "description max. 100 characters")
 
         data = {
             'title': title,
@@ -791,7 +796,7 @@ class ImageEditHandler(BaseHandler):
             {'$set': data}
         )
 
-        metadata_key = 'metadata:%s' % fileid
+        metadata_key = 'metadata:%s' % document['fileid']
         self.redis.delete(metadata_key)
 
         try:
@@ -800,6 +805,24 @@ class ImageEditHandler(BaseHandler):
             logging.error('Unable to clear_thumbnail_grid_cache()',
                           exc_info=True)
 
+        callback(data)
+
+
+@route('/(\w{9})/edit', 'image_edit')
+class ImageEditHandler(BaseHandler, ImageMetadataMixin):
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def post(self, fileid):
+        current_user = self.get_current_user()
+        if not current_user:
+            raise tornado.web.HTTPError(403, "Not logged in")
+
+        data = yield tornado.gen.Task(
+            self.run_edit,
+            fileid,
+            current_user
+        )
         self.write(data)
         self.finish()
 
@@ -1118,15 +1141,10 @@ class UploadHandler(BaseHandler):
         self.render('upload.html')
 
 
-@route('/upload/preview', 'upload_preview')
-class PreviewUploadHandler(UploadHandler):
+class PreviewMixin(object):
 
-    @tornado.web.asynchronous
     @tornado.gen.engine
-    def post(self):
-        url = self.get_argument('url')
-        if not self.get_current_user():
-            raise tornado.web.HTTPError(403, "You must be logged in")
+    def run_preview(self, url, callback):
         http_client = tornado.httpclient.AsyncHTTPClient()
         head_response = yield tornado.gen.Task(
             http_client.fetch,
@@ -1139,13 +1157,10 @@ class PreviewUploadHandler(UploadHandler):
                 'Fetching the image timed out. '
                 'Perhaps try again a little later.'
             )
-            self.write({'error': message})
-            self.finish()
-            return
+            callback({'error': message})
 
         if not head_response.code == 200:
-            self.write({'error': head_response.body})
-            self.finish()
+            callback({'error': head_response.body})
             return
 
         content_type = head_response.headers['Content-Type']
@@ -1162,13 +1177,19 @@ class PreviewUploadHandler(UploadHandler):
                     content_type = 'unknown'
             else:
                 if content_type == 'text/html':
-                    self.write({'error': "URL not an image. It's a web page"})
-                    self.finish()
+                    message = "URL not an image. It's a web page"
+
+                    callback({'error': "URL not an image. It's a web page"})
                     return
-                raise tornado.web.HTTPError(
-                    400,
-                    "Unrecognized content type '%s'" % content_type
-                )
+                message = "Unrecognized content type '%s' " % content_type
+                if content_type == 'application/octet-stream':
+                    message += (
+                        "\nThis likely to happen if the URL is not an image "
+                        "but an application or something else only for "
+                        "download."
+                    )
+                callback({'error': message})
+                return
         try:
             expected_size = int(head_response.headers['Content-Length'])
             if expected_size == 1:
@@ -1209,33 +1230,55 @@ class PreviewUploadHandler(UploadHandler):
             document['size'] = expected_size
         yield motor.Op(self.db.images.insert, document, safe=False)
 
-        self.write({
+        callback({
             'fileid': fileid,
             'content_type': content_type,
             'expected_size': expected_size,
         })
+
+
+@route('/upload/preview', 'upload_preview')
+class PreviewUploadHandler(UploadHandler, PreviewMixin):
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def post(self):
+        url = self.get_argument('url')
+        if not self.get_current_user():
+            raise tornado.web.HTTPError(403, "You must be logged in")
+        response = yield tornado.gen.Task(self.run_preview, url)
+        self.write(response)
         self.finish()
 
 
+class ProgressMixin(object):
+
+    def get_progress(self, fileid, content_type=None):
+        destination = self.make_destination(fileid, content_type=content_type)
+        data = {
+            'done': 0
+        }
+        if os.path.isfile(destination):
+            size = os.stat(destination)[stat.ST_SIZE]
+            data['done'] = size
+        return data
+
+
 @route('/upload/progress', 'upload_progress')
-class ProgressUploadHandler(UploadHandler):
+class ProgressUploadHandler(UploadHandler, ProgressMixin):
 
     def get(self):
         if not self.get_current_user():
             raise tornado.web.HTTPError(403, "You must be logged in")
         fileid = self.get_argument('fileid')
-        destination = self.make_destination(fileid)
-        data = {
-            'done': 0
-        }
-
-        if os.path.isfile(destination):
-            size = os.stat(destination)[stat.ST_SIZE]
-            data['done'] = size
+        data = self.get_progress(fileid)
         self.write(data)
 
 
-def my_streaming_callback(destination_file, data):
+def streaming_callback(destination_file, data):
+    #print "hello"
+    #from time import sleep
+    #sleep(0.1)
     destination_file.write(data)
 
 
@@ -1243,7 +1286,7 @@ class TileMakerMixin(object):
 
     @tornado.gen.engine
     def prepare_all_tiles(self, fileid, original, ranges, extension,
-                          callback):
+                          callback, add_delay=True):
         had_to_give_up = False
         image_split = fileid[:1] + '/' + fileid[1:3] + '/' + fileid[3:]
 
@@ -1302,7 +1345,7 @@ class TileMakerMixin(object):
         ioloop_instance = tornado.ioloop.IOLoop.instance()
         delay = 1
         total_delay = 0
-        while True:
+        while add_delay:
             yield tornado.gen.Task(
                 ioloop_instance.add_timeout,
                 time.time() + delay
@@ -1332,12 +1375,8 @@ class TileMakerMixin(object):
 
     @tornado.gen.engine
     def email_about_upload(self, fileid, extension, email, callback):
-        base_url = (
-            '%s://%s' %
-            (self.request.protocol, self.request.host)
-        )
-        url = base_url + self.reverse_url('image', fileid)
-        home_url = base_url + '/'
+        url = self.base_url + self.reverse_url('image', fileid)
+        home_url = self.base_url + '/'
 
         unsub_key = uuid.uuid4().hex[:12]
         self.redis.setex(
@@ -1345,7 +1384,7 @@ class TileMakerMixin(object):
             email,
             60 * 60 * 24 * 7
         )
-        unsubscribe_url = base_url + self.reverse_url('unsubscribe', unsub_key)
+        unsubscribe_url = self.base_url + self.reverse_url('unsubscribe', unsub_key)
 
         thumbnail_url = self.make_thumbnail_url(
             fileid,
@@ -1370,7 +1409,7 @@ class TileMakerMixin(object):
         )
         html_email_body = premailer.transform(
             html_email_body,
-            base_url=base_url
+            base_url=self.base_url
         )
 
         email_body = self.render_string(
@@ -1397,15 +1436,11 @@ class TileMakerMixin(object):
         callback(job)
 
 
-@route('/upload/download', 'upload_download')
-class DownloadUploadHandler(UploadHandler, TileMakerMixin):
+class DownloadMixin(object):
 
-    @tornado.web.asynchronous
     @tornado.gen.engine
-    def post(self):
-        if not self.get_current_user():
-            raise tornado.web.HTTPError(403, "You must be logged in")
-        fileid = self.get_argument('fileid')
+    def run_download(self, fileid, callback,
+                     add_delay=True):
         document = yield motor.Op(
             self.db.images.find_one,
             {'fileid': fileid}
@@ -1443,11 +1478,11 @@ class DownloadUploadHandler(UploadHandler, TileMakerMixin):
 
         response = job.result
         if response['code'] == 200:
-            size = Image.open(destination).size
+            img = Image.open(destination)
+            size = img.size
             if size[0] < 256 * (2 ** self.DEFAULT_RANGE_MIN):
-                self.write({
-                    'error': 'Picture too small (%sx%s)' % size
-                })
+                message = 'Picture too small (%sx%s)' % size
+                callback({'error': message})
 
                 # reverse the upload by deleting the record
                 yield motor.Op(
@@ -1455,10 +1490,42 @@ class DownloadUploadHandler(UploadHandler, TileMakerMixin):
                     {'_id': document['_id']}
                 )
                 os.remove(destination)
-                self.finish()
+                return
+            # img.histogram() is a long list of integers
+            histogram_hash = hashlib.md5(
+              ','.join(str(x) for x in img.histogram())
+            ).hexdigest()
+
+            data = {
+                'width': size[0],
+                'height': size[1],
+                'histogramhash': histogram_hash,
+            }
+
+            replica_search = {
+                'histogramhash': histogram_hash,
+                'user': document['user'],
+            }
+            cursor = (
+                self.db.images.find(replica_search)
+                .limit(1)
+            )
+            replica_image = yield motor.Op(cursor.next_object)
+            if replica_image:
+                url = self.base_url + self.reverse_url('image', replica_image['fileid'])
+                message = 'Picture matches an identical upload %s' % url
+                callback({'error': message})
+
+                # reverse the upload by deleting the record
+                yield motor.Op(
+                    self.db.images.remove,
+                    {'_id': document['_id']}
+                )
+                os.remove(destination)
                 return
 
-            data = {'width': size[0], 'height': size[1]}
+            #print "# Replicas", replicas
+
             if not document.get('size'):
                 data['size'] = os.stat(destination)[stat.ST_SIZE]
             yield motor.Op(
@@ -1466,9 +1533,15 @@ class DownloadUploadHandler(UploadHandler, TileMakerMixin):
                 {'_id': document['_id']},
                 {'$set': data}
             )
+            self.redis.setex(
+                'sizeinfo:%s' % fileid,
+                tornado.escape.json_encode(data),
+                60 * 60
+            )
             area = size[0] * size[1]
             r = 1.0 * size[0] / size[1]
 
+            # this is used for doing things like stats on all uploads
             all_fileids_key = 'allfileids'
             self.redis.lpush(all_fileids_key, fileid)
             all_fileids_key = ':%s' % document['user']
@@ -1506,6 +1579,7 @@ class DownloadUploadHandler(UploadHandler, TileMakerMixin):
                 destination,
                 ranges,
                 extension,
+                add_delay=add_delay,
             )
             # clear the home page cache
             try:
@@ -1518,11 +1592,11 @@ class DownloadUploadHandler(UploadHandler, TileMakerMixin):
                     "Had to give up when generating tiles %r"
                     % fileid
                 )
-                self.write({
+                callback({
                     'email': document['user']
                 })
             else:
-                self.write({
+                callback({
                     'url': self.reverse_url('image', fileid),
                 })
 
@@ -1544,10 +1618,28 @@ class DownloadUploadHandler(UploadHandler, TileMakerMixin):
             except:
                 logging.error("Unable to remove %s" % destination,
                               exc_info=True)
-            self.write({
+            callback({
                 'error': "FAILED TO DOWNLOAD\n%s\n%s\n" %
                          (response['code'], response['body'])
             })
+
+
+@route('/upload/download', 'upload_download')
+class DownloadUploadHandler(UploadHandler,
+                            DownloadMixin,
+                            TileMakerMixin):
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def post(self):
+        if not self.get_current_user():
+            raise tornado.web.HTTPError(403, "You must be logged in")
+        fileid = self.get_argument('fileid')
+        response = yield tornado.gen.Task(
+            self.run_download,
+            fileid
+        )
+        self.write(response)
         self.finish()
 
 

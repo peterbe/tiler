@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+
+{% block page_title %}Developers' API for {{ PROJECT_TITLE }}{% end %}
+
+{% block extra_head %}
+{% module LinkTags('css/docs.css') %}
+<style type="text/css">
+.key { text-align: center; }
+.key code { font-size: 150%; padding: 6px; margin: 10px; }
+.endpoint { text-align: center; }
+.endpoint code { font-size: 120%; padding: 3px; margin: 5px; }
+td strong { font-size: 120%; font-family: Monaco,Menlo,Consolas,"Courier New",monospace; }
+td span { color: #666; }
+</style>
+{% end %}
+
+{% block extra_js %}
+{% module ScriptTags('libs/bootstrap.min.js') %}
+<script type="text/javascript">
+$(function(){
+    // side bar
+    var $window = $(window);
+    $('.bs-docs-sidenav').affix({
+      offset: {
+        top: function () { return $window.width() <= 980 ? 290 : 210 }
+      , bottom: 270
+      }
+    });
+});
+</script>
+{% end %}
+
+{% block main %}
+<div class="row">
+
+  <div class="span3 bs-docs-sidebar">
+    <ul class="nav nav-list bs-docs-sidenav">
+      <li><a href="#overview"><i class="icon-chevron-right"></i> Overview</a></li>
+      <li><a href="#upload-by-url"><i class="icon-chevron-right"></i> To upload a picture by URL</a></li>
+      <li><a href="#upload-progress"><i class="icon-chevron-right"></i> To check progress on an upload</a></li>
+      <li><a href="#update-metadata"><i class="icon-chevron-right"></i> To update meta data about picture</a></li>
+
+    </ul>
+  </div>
+
+  <div class="span9">
+
+  <section id="overview">
+    <div class="page-header">
+    <h1>Developers' API</h1>
+    </div>
+
+    <p>To use the API you need a <strong>key</strong>.
+    {% if your_key %}
+    Your key is this big thing:
+    {% end %}
+    </p>
+    {% if your_key %}
+    <p class="key">
+      <code>{{ your_key }}</code>
+    </p>
+    {% else %}
+    <p>You don't have a key until you sign in.</p>
+    {% end %}
+
+  </section>
+
+  <section id="upload-by-url">
+    <div class="page-header">
+      <h2>To upload a picture by URL</h2>
+    </div>
+
+    <h4>Endpoint:</h4>
+    <p class="endpoint">
+      <code>POST</code>
+      <code>{{ base_url }}/api/upload</code>
+    </p>
+
+    <h4>Parameters:</h4>
+
+    <table class="table">
+      <tr>
+        <td>
+          <strong>key</strong><br>
+          <span>required</span>
+        </td>
+        <td><em>Your</em> API key of course.
+        {% if your_key %}In your case it's <code>{{ your_key }}</code>{% end %}
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <strong>url</strong><br>
+          <span>required</span>
+        </td>
+        <td>It must be a full URL starting with either <code>http://</code>
+          or <code>https://</code>
+        </td>
+      </tr>
+    </table>
+
+    <h4>For example:</h4>
+    <pre>curl -X POST -d url=http://someplace.domain/massive.jpg -d key={% if your_key %}{{ your_key }}{% else %}yourlongkeyhere{% end %} {{ base_url }}/api/upload</pre>
+
+    <h4>Sample response:</h4>
+    <pre>HTTP/1.1 200 OK
+Content-Type: application/json; charset=UTF-8
+Content-Length: 79
+
+{"expected_size": 14833321, "content_type": "image/jpeg", "fileid": "6de884a1f"}
+</pre>
+
+  <section id="upload-progress">
+    <div class="page-header">
+      <h2>To check progress on an upload</h2>
+    </div>
+
+    <h4>Endpoint:</h4>
+    <p class="endpoint">
+      <code>GET</code>
+      <code>{{ base_url }}/api/upload/:fileid</code>
+    </p>
+
+    <p><strong>Note!</strong> This URL will only be available for <strong>1 hour</strong>
+    after you have started the upload.</p>
+
+    <h4>Parameters:</h4>
+    <p><em>none</em></p>
+
+    <h4>For example:</h4>
+    <pre>curl {{ base_url }}/api/upload/6de884a1f</pre>
+
+    <h4>Sample response:</h4>
+    <pre>HTTP/1.1 200 OK
+Content-Type: application/json; charset=UTF-8
+
+{"done": 2889644, "percentage_done": 24.6, "left": 943677}
+</pre>
+<!--    or, if you upload directly
+    <pre>HTTP/1.1 200 OK
+Content-Type: application/json; charset=UTF-8
+Content-Length: 000
+
+{"done": 2889644}
+</pre> -->
+    or, when it's finished
+    <pre>HTTP/1.1 200 OK
+Content-Type: application/json; charset=UTF-8
+
+{"url": "{{ base_url }}/7b5c6dca5", "height": 2986, "width": 4000, "done": 3833321, "percentage_done": 100.0, "left": 0}
+</pre>
+  </section>
+
+  <section id="update-metadata">
+    <div class="page-header">
+      <h2>To update meta data about picture</h2>
+    </div>
+
+    <h4>Endpoint:</h4>
+    <p class="endpoint">
+      <code>PUT</code>
+      <code>{{ base_url }}/api/:fileid</code>
+    </p>
+
+    <h4>Parameters:</h4>
+
+    <table class="table">
+      <tr>
+        <td>
+          <strong>key</strong><br>
+          <span>required</span>
+        </td>
+        <td>because of course you can only update your own pictures</td>
+      </tr>
+      <tr>
+        <td>
+          <strong>title</strong><br>
+          <span>optional</span>
+        </td>
+        <td>maximum 200 characters long</td>
+      </tr>
+      <tr>
+        <td>
+          <strong>description</strong><br>
+          <span>optional</span>
+        </td>
+        <td>maximum 1000 characters long</td>
+      </tr>
+    </table>
+
+    <h4>For example:</h4>
+    <pre>curl -X PUT -d title="My House" -d key={% if your_key %}{{ your_key }}{% else %}yourlongkeyhere{% end %} {{ base_url }}/api/6de884a1f</pre>
+
+    <h4>Sample response:</h4>
+    <pre>HTTP/1.1 200 OK
+Content-Type: application/json; charset=UTF-8
+
+{"title": "My House", "description": ""}
+</pre>
+  </section>
+
+  </div>
+</div>
+
+
+{% end %}

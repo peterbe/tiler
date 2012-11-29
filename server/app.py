@@ -13,6 +13,7 @@ from rq import Queue
 import motor
 import settings
 import handlers
+import api_handlers
 import admin_handlers
 
 
