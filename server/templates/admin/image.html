@@ -148,9 +148,15 @@
         <i>none</i>
         {% end %}
       </dd>
-
-
     </dl>
+
+    <a href="#" class="delete-image" style="font-size:.8em">Delete</a>
+
+    <form class="delete-image" style="display:none"
+          action="{{ reverse_url('admin_delete_image', image['fileid']) }}"
+          method="post">
+    <button class="btn" type="submit">Yes, delete</button>
+    </form>
   </div>
 </div>
 {% end %}
@@ -167,6 +173,12 @@ $(function() {
     $('form.recalculatesize').toggle();
     return; false;
   });
+
+  $('a.delete-image').click(function() {
+    $('form.delete-image').toggle();
+    return false;
+  });
+
 });
 </script>
 {% end %}

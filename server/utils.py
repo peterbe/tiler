@@ -233,11 +233,13 @@ def make_tile(image, size, zoom, row, col, extension, static_path,
 def make_tiles(image, size, zoom, rows, cols, extension, static_path):
     # this is an "optimization" over make_tile() since we make one Image
     # instance and re-use it for every row and every column.
+    count = 0
     for row in range(rows + 1):
         for col in range(cols + 1):
             make_tile(image, size, zoom, row, col, extension, static_path,
                       cache_image_open=True)
-
+            count += 1
+    return "%s tiles made" % count
 
 def delete_image(image, static_path):
     uploads_root = os.path.join(

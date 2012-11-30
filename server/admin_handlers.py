@@ -11,7 +11,7 @@ from tornado_utils.routes import route
 from rq import Queue
 import motor
 
-from handlers import BaseHandler, TileMakerMixin
+from handlers import BaseHandler, TileMakerMixin, DeleteImageMixin
 from utils import count_all_tiles, find_all_tiles, find_original
 from awsuploader import update_tiles_metadata
 import settings
@@ -676,4 +676,27 @@ class AdminRecalculateSizeHandler(AdminBaseHandler):
         self.redis.delete(metadata_key)
 
         url = self.reverse_url('admin_image', fileid)
+        self.redirect(url)
+
+
+@route('/admin/(?P<fileid>\w{9})/delete/',
+       name='admin_delete_image')
+class AdminDeleteImageHandler(AdminBaseHandler, DeleteImageMixin):
+
+    def check_xsrf_cookie(self):
+        pass
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def post(self, fileid):
+        image = yield motor.Op(
+            self.db.images.find_one,
+            {'fileid': fileid}
+        )
+        if not image:
+            raise tornado.web.HTTPError(404, "File not found")
+
+        yield tornado.gen.Task(self.delete_image, image)
+
+        url = self.reverse_url('admin_home')
         self.redirect(url)

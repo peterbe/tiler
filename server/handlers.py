@@ -30,6 +30,7 @@ from optimizer import optimize_images, optimize_thumbnails
 from awsuploader import upload_tiles, upload_original
 from resizer import make_resize
 from emailer import send_url
+from downloader import download
 import settings
 
 
@@ -1046,26 +1047,20 @@ class ImageAnnotationsDeleteHandler(AnnotationBaseHandler):
         self.finish()
 
 
-@route('/(\w{9})/delete', 'image_delete')
-class ImageDeleteHandler(BaseHandler):
+class DeleteImageMixin(object):
 
-    @tornado.web.asynchronous
     @tornado.gen.engine
-    def post(self, fileid):
-        current_user = self.get_current_user()
-        if not current_user:
-            raise tornado.web.HTTPError(403, "Not logged in")
-        document = yield motor.Op(
-            self.db.images.find_one,
-            {'fileid': fileid}
+    def delete_image(self, document, callback):
+        fileid = document['fileid']
+        yield motor.Op(
+            self.db.comments.remove,
+            {'image': document['_id']}
         )
-        if document['user'] != current_user:
-            raise tornado.web.HTTPError(403, "Not yours to edit")
-
         yield motor.Op(
             self.db.images.remove,
             {'_id': document['_id']}
         )
+
         metadata_key = 'metadata:%s' % fileid
         self.redis.delete(metadata_key)
 
@@ -1088,6 +1083,28 @@ class ImageDeleteHandler(BaseHandler):
         except:
             logging.error('Unable to clear_thumbnail_grid_cache()',
                           exc_info=True)
+
+        callback()
+
+
+@route('/(\w{9})/delete', 'image_delete')
+class ImageDeleteHandler(BaseHandler, DeleteImageMixin):
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def post(self, fileid):
+        current_user = self.get_current_user()
+        if not current_user:
+            raise tornado.web.HTTPError(403, "Not logged in")
+        document = yield motor.Op(
+            self.db.images.find_one,
+            {'fileid': fileid}
+        )
+        if document:
+            if document['user'] != current_user:
+                raise tornado.web.HTTPError(403, "Not yours to edit")
+
+            yield tornado.gen.Task(self.delete_image, document)
 
         self.write("Deleted")
         self.finish()
@@ -1263,20 +1280,20 @@ class TileMakerMixin(object):
         ))
 
         for zoom in ranges:
-            jobs.append(q.enqueue(
+            q.enqueue(
                 optimize_images,
                 image_split,
                 zoom,
                 extension,
                 self.application.settings['static_path'],
-            ))
+            )
 
-        jobs.append(q.enqueue(
+        q.enqueue(
             optimize_thumbnails,
             image_split,
             extension,
             self.application.settings['static_path'],
-        ))
+        )
 
         lock_key = 'uploading:%s' % fileid
         self.redis.setex(lock_key, time.time(), 60 * 60)
@@ -1285,12 +1302,11 @@ class TileMakerMixin(object):
         delay = 1
         total_delay = 0
         while True:
-            #print "TOTAL DELAY", total_delay
             yield tornado.gen.Task(
                 ioloop_instance.add_timeout,
                 time.time() + delay
             )
-            delay += 5
+            delay += 1
             total_delay += delay
 
             jobs_done = len([
@@ -1301,7 +1317,6 @@ class TileMakerMixin(object):
                 x for x in jobs
                 if x.result is None
             ]
-            #print "jobs_remaining", len(jobs_remaining)
             if not jobs_remaining:
                 break
             if total_delay > 50:
@@ -1346,8 +1361,6 @@ class TileMakerMixin(object):
             email_body,
             self.application.settings['debug']
         )
-        print "URL"
-        print url
         callback(job)
 
 
@@ -1370,17 +1383,33 @@ class DownloadUploadHandler(UploadHandler, TileMakerMixin):
         )
         http_client = tornado.httpclient.AsyncHTTPClient()
         destination = self.make_destination(fileid)
-        destination_file = open(destination, 'wb')
-        response = yield tornado.gen.Task(
-            http_client.fetch,
-            url,
-            headers={},
-            request_timeout=600.0,  # 20.0 is the default
-            streaming_callback=functools.partial(my_streaming_callback,
-                                                 destination_file)
+        #destination_file = open(destination, 'wb')
+        #response = yield tornado.gen.Task(
+        #    http_client.fetch,
+        #    url,
+        #    headers={},
+        #    request_timeout=600.0,  # 20.0 is the default
+        #    streaming_callback=functools.partial(my_streaming_callback,
+        #                                         destination_file)
+        #)
+        #destination_file.close()
+        q = Queue(connection=self.redis)
+        job = q.enqueue_call(
+            func=download,
+            args=(url, destination),
+            kwargs={'request_timeout': 500},
+            timeout=501,
         )
-        destination_file.close()
-        if response.code == 200:
+        delay = 1
+        ioloop_instance = tornado.ioloop.IOLoop.instance()
+        while job.result is None:
+            yield tornado.gen.Task(
+                ioloop_instance.add_timeout,
+                time.time() + delay
+            )
+
+        response = job.result
+        if response['code'] == 200:
             size = Image.open(destination).size
             if size[0] < 256 * (2 ** self.DEFAULT_RANGE_MIN):
                 self.write({
@@ -1478,7 +1507,7 @@ class DownloadUploadHandler(UploadHandler, TileMakerMixin):
                               exc_info=True)
             self.write({
                 'error': "FAILED TO DOWNLOAD\n%s\n%s\n" %
-                         (response.code, response.body)
+                         (response['code'], response['body'])
             })
         self.finish()
 
