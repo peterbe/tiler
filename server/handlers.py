@@ -11,6 +11,7 @@ import time
 import datetime
 from pprint import pprint
 
+import premailer
 from bson.objectid import ObjectId
 import tornado.web
 import tornado.gen
@@ -1336,6 +1337,15 @@ class TileMakerMixin(object):
             (self.request.protocol, self.request.host)
         )
         url = base_url + self.reverse_url('image', fileid)
+        home_url = base_url + '/'
+
+        unsub_key = uuid.uuid4().hex[:12]
+        self.redis.setex(
+            'unsubscribe:%s' % unsub_key,
+            email,
+            60 * 60 * 24 * 7
+        )
+        unsubscribe_url = base_url + self.reverse_url('unsubscribe', unsub_key)
 
         thumbnail_url = self.make_thumbnail_url(
             fileid,
@@ -1344,12 +1354,29 @@ class TileMakerMixin(object):
             absolute_url=True,
         )
 
-        email_body = self.render_string(
+        html_email_body = self.render_string(
             '_email.html',
             url=url,
             fileid=fileid,
             thumbnail_url=thumbnail_url,
+            home_url=home_url,
+            unsubscribe_url=unsubscribe_url,
+            email=email,
             host=self.request.host,
+            name=self.redis.hget('name', email),
+        )
+        html_email_body = premailer.transform(
+            html_email_body,
+            base_url=base_url
+        )
+
+        email_body = self.render_string(
+            '_email.txt',
+            url=url,
+            home_url=home_url,
+            unsubscribe_url=unsubscribe_url,
+            email=email,
+            name=self.redis.hget('name', email),
         )
 
         q = Queue(connection=self.redis)
@@ -1358,8 +1385,9 @@ class TileMakerMixin(object):
             url,
             fileid,
             email,
-            email_body,
-            self.application.settings['debug']
+            html_email_body,
+            plain_body=email_body,
+            debug=self.application.settings['debug']
         )
         callback(job)
 
@@ -1882,6 +1910,18 @@ class PopularityHandler(BaseHandler):
 
         callback((hits, this_month, bytes))
 
+
+@route(r'/unsubscribe/(?P<unsub_key>\w{12})', 'unsubscribe')
+class UnsubscribeHandler(BaseHandler):
+
+    def get(self, unsub_key):
+        email = self.redis.get('unsubscribe:%s' % unsub_key)
+        if email:
+            self.redis.sadd('unsubscribed', email)
+        data = {
+            'email': email,
+        }
+        self.render('unsubscribed.html', **data)
 
 
 # this handler gets automatically appended last to all handlers inside app.py

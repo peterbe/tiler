@@ -1,17 +1,77 @@
-<html>
-<body>
-<p><strong>Hi!</strong></p>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<!-- If you delete this meta tag, Half Life 3 will never be released. -->
+<meta name="viewport" content="width=device-width" />
 
-<p>The wonderful picture you uploaded is now fully processed.
-You can view it at:</p>
-<p style="text-align:center">
-  <a href="{{ url }}" style="font-size:130%;font-weight:bold">{{ url }}</a><br>
-  <a href="{{ url }}"><img src="{{ thumbnail_url }}" alt="Thumbnail of your picture"></a>
-</p>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>Your HUGEpic upload</title>
 
-<p style="margin-top:10px">
-  <a href="http://{{ host }}/" style="font-size:80%;font-weight:bold">HUGEpic.io</a><br>
-</p>
+<style type="text/css">
+p.the-url { text-align: center }
+p.the-url a { font-size: 140%; font-weight: bold; }
+{% include "_email.css" %}
+</style>
+
+</head>
+
+<body bgcolor="#FFFFFF">
+
+<!-- BODY -->
+<table class="body-wrap">
+	<tr>
+		<td></td>
+		<td class="container" bgcolor="#FFFFFF">
+
+			<div class="content">
+			<table>
+				<tr>
+					<td>
+						<h3>Hi, {% if name %}{{ name }}{% end %}</h3>
+						<p class="lead">The wonderful picture you uploaded is now fully processed.</p>
+                                                <p>You can view you HUGE picture at:</p>
+
+                                                <p class="the-url">
+                                                    <a href="{{ url }}">{{ url }}</a>
+                                                    <a href="{{ url }}"><img src="{{ thumbnail_url }}" /></a>
+                                                </p>
+
+						<!-- social & contact -->
+					</td>
+				</tr>
+			</table>
+			</div><!-- /content -->
+
+		</td>
+		<td></td>
+	</tr>
+</table><!-- /BODY -->
+
+<!-- FOOTER -->
+<table class="footer-wrap">
+	<tr>
+		<td></td>
+		<td class="container">
+
+				<!-- content -->
+				<div class="content">
+				<table>
+				<tr>
+					<td align="center">
+						<p>
+							<a href="{{ home_url }}" style="font-weight:bold">HUGEpic</a> |
+							<a href="{{ home_url }}?user={{ email }}">Your uploads</a> |
+							<a href="{{ unsubscribe_url }}"><unsubscribe>Unsubscribe</unsubscribe></a>
+						</p>
+					</td>
+				</tr>
+			</table>
+				</div><!-- /content -->
+
+		</td>
+		<td></td>
+	</tr>
+</table><!-- /FOOTER -->
 
 </body>
 </html>

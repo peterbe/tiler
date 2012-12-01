@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<style type="text/css">
+h2,h3,h4 { text-align: center }
+</style>
+{% end %}
+
+
+{% block main %}
+<div class="row">
+    {% if email %}
+      <h1>Unsubscribed</h1>
+      <h3>No more emails to <em>{{ email }}</em></h3>
+      <h4>That's cool. A big inbox can be frustrating.</h4>
+      <h4>Go and check out <a href="/?email={{ email }}">Your uploads</a></h4>
+    {% else %}
+      <h3>Unable to find your email address. Sorry.</h3>
+    {% end %}
+</div>
+{% end %}

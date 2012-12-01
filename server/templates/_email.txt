@@ -1,0 +1,13 @@
+Hi, {% if name %}{{ name }}{% end %}
+
+The wonderful picture you uploaded is now fully processed.
+You can view you HUGE picture at:
+
+  {{ url }}
+
+
+--
+
+{{ home_url }}
+your uploads: {{ home_url }}?user={{ email }}
+unsubscribe: {{ unsubscribe_url }}
