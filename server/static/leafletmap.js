@@ -246,6 +246,7 @@ L.Icon.Default.imagePath = '/static/libs/images';
 
 
 var CustomButtons = (function() {
+  var _in_fullscreen = false;
 
   function launchFullScreen(element) {
     if(element.requestFullScreen) {
@@ -255,6 +256,7 @@ var CustomButtons = (function() {
     } else if(element.webkitRequestFullScreen) {
       element.webkitRequestFullScreen();
     }
+    _in_fullscreen = true;
   }
 
   function cancelFullscreen() {
@@ -265,6 +267,7 @@ var CustomButtons = (function() {
     } else if(document.webkitCancelFullScreen) {
       document.webkitCancelFullScreen();
     }
+    _in_fullscreen = false;
   }
 
   function make_button(container, classname, title, href, handler, visible) {
@@ -364,10 +367,25 @@ var CustomButtons = (function() {
 
   });
 
+  function fullscreen_changed() {
+    _in_fullscreen = !_in_fullscreen;
+    if (_in_fullscreen) {
+      $('a.leaflet-control-custom-unfullscreen').hide();
+      $('a.leaflet-control-custom-fullscreen').show();
+    } else {
+      $('a.leaflet-control-custom-unfullscreen').show();
+      $('a.leaflet-control-custom-fullscreen').hide();
+    }
+  }
+
   return {
      setup: function(map) {
        var buttons = new custom_button_class();
        buttons.addTo(map);
+
+       document.addEventListener("fullscreenchange", fullscreen_changed)
+       document.addEventListener("mozfullscreenchange", fullscreen_changed);
+       document.addEventListener("webkitfullscreenchange", fullscreen_changed);
      }
   };
 })();

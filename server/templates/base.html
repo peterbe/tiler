@@ -51,7 +51,7 @@
                         <ul class="dropdown-menu">
                             <li><a href="/?user={{ user }}"><i class="icon-upload"></i> Your uploads</a></li>
 			    {#<li><a href="/preferences"><i class="icon-cog"></i> Preferences</a></li>#}
-                            <li><a href="/api"><i class="icon-download-alt"></i> Developers' API</a></li>
+                            <li><a href="{{ reverse_url('api') }}"><i class="icon-download-alt"></i> Developers' API</a></li>
                             <li class="divider"></li>
                             <li><a href="#" class="signout"><i class="icon-off"></i> Sign out</a></li>
                         </ul>
@@ -99,7 +99,13 @@
 
       <footer>
         {% block extra_footer %}{% end %}
-        <p>&copy; {{ PROJECT_TITLE }} 2012</p>
+        <p>&copy;
+	<a href="/">{{ PROJECT_TITLE }} 2012</a>
+	|
+	<a href="{{ reverse_url('about') }}">About</a>
+	|
+	<a href="{{ reverse_url('api') }}">Developers' API</a>
+	</p>
       </footer>
 
     </div> <!-- /container -->
