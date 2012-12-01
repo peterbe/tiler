@@ -1380,6 +1380,7 @@ class TileMakerMixin(object):
         )
 
         q = Queue(connection=self.redis)
+        logging.info('Enqueueing email to %s', email)
         job = q.enqueue(
             send_url,
             url,

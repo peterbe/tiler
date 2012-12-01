@@ -252,10 +252,13 @@ class AdminImageHandler(AdminBaseHandler):
 
         awsupdating_key = 'awsupdated:%s' % fileid
         awsupdating_locked = self.redis.get(awsupdating_key) is not None
+
+        unsubscribed = self.redis.sismember('unsubscribed', image['user'])
         data = {
             'image': image,
             'uploading_locked': uploading_locked,
             'awsupdating_locked': awsupdating_locked,
+            'unsubscribed': unsubscribed,
         }
 
         self.render('admin/image.html', **data)
