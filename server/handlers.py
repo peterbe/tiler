@@ -1354,6 +1354,8 @@ class TileMakerMixin(object):
             absolute_url=True,
         )
 
+        was_unsubscribed = self.redis.sismember('unsubscribed', email)
+
         html_email_body = self.render_string(
             '_email.html',
             url=url,
@@ -1361,6 +1363,7 @@ class TileMakerMixin(object):
             thumbnail_url=thumbnail_url,
             home_url=home_url,
             unsubscribe_url=unsubscribe_url,
+            was_unsubscribed=was_unsubscribed,
             email=email,
             host=self.request.host,
             name=self.redis.hget('name', email),
@@ -1375,6 +1378,7 @@ class TileMakerMixin(object):
             url=url,
             home_url=home_url,
             unsubscribe_url=unsubscribe_url,
+            was_unsubscribed=was_unsubscribed,
             email=email,
             name=self.redis.hget('name', email),
         )
@@ -1522,12 +1526,18 @@ class DownloadUploadHandler(UploadHandler, TileMakerMixin):
                     'url': self.reverse_url('image', fileid),
                 })
 
-            yield tornado.gen.Task(
-                self.email_about_upload,
-                fileid,
-                extension,
-                document['user'],
-            )
+            # only send an email if we had to give up or the user
+            # has not unsubscribed
+            if (had_to_give_up or not
+                self.redis.sismember('unsubscribed', document['user'])):
+                yield tornado.gen.Task(
+                    self.email_about_upload,
+                    fileid,
+                    extension,
+                    document['user'],
+                )
+            else:
+                logging.info('Skipping to send email')
         else:
             try:
                 os.remove(destination)

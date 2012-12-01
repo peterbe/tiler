@@ -36,6 +36,14 @@ p.the-url a { font-size: 140%; font-weight: bold; }
                                                     <a href="{{ url }}"><img src="{{ thumbnail_url }}" /></a>
                                                 </p>
 
+                                                {% if was_unsubscribed %}
+                                                <p><strong>Note!</strong>
+                                                I know you have <strong>unsubscribed</strong>
+                                                but there was no other way to tell you
+                                                the upload is finished and this is your URL.
+                                                </p>
+                                                {% end %}
+
 						<!-- social & contact -->
 					</td>
 				</tr>

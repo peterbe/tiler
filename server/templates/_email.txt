@@ -5,7 +5,9 @@ You can view you HUGE picture at:
 
   {{ url }}
 
-
+{% if was_unsubscribed %}Note!
+I know you have unsubscribed but there was no other way to tell you the upload
+is finished and this is your URL.{% end %}
 --
 
 {{ home_url }}
