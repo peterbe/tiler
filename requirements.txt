@@ -10,3 +10,4 @@ cssmin
 boto
 lxml
 cssselect
+premailer
