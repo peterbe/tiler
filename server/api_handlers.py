@@ -1,4 +1,3 @@
-import time
 import uuid
 import tornado.web
 import tornado.gen
@@ -106,7 +105,10 @@ class APIUploadProgressHandler(APIBaseHandler, ProgressMixin):
     def get(self, fileid):
         content_type = self.redis.get('contenttype:%s' % fileid)
         if content_type is None:
-            raise tornado.web.HTTPError(410, 'Elvis has already left the building')
+            raise tornado.web.HTTPError(
+                410,
+                'Elvis has already left the building'
+            )
         expected_size = self.redis.get('expectedsize:%s' % fileid)
 
         data = self.get_progress(fileid, content_type=content_type)
@@ -114,7 +116,9 @@ class APIUploadProgressHandler(APIBaseHandler, ProgressMixin):
         # let's make it a bit richer
         if expected_size is not None:
             data['left'] = int(expected_size) - data['done']
-            data['percentage'] = round(100.0 * data['done'] / int(expected_size), 1)
+            data['percentage'] = (
+                round(100.0 * data['done'] / int(expected_size), 1)
+            )
 
         sizeinfo = self.redis.get('sizeinfo:%s' % fileid)
         if sizeinfo is not None:

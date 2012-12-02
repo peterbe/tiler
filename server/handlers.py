@@ -1,10 +1,8 @@
-import re
 import os
 import stat
 import urllib
 import json
 import uuid
-import functools
 import logging
 import hashlib
 import time
@@ -40,6 +38,7 @@ def smartertimesince(d, now=None):
     if isinstance(d, (int, float)):
         d = datetime.datetime.utcnow() - datetime.timedelta(seconds=d)
     return _smartertimesince(d, now=now)
+
 
 def sample_queue_job():
     # used to check that the queue workers are awake
@@ -254,37 +253,13 @@ class HomeHandler(BaseHandler, ThumbnailGridRendererMixin):
         total_count = yield motor.Op(self.db.images.find(search).count)
 
         page_size = 15
-        _search_values = [
-            v for (k, v) in search.items()
-            if k != 'date'
-        ]
-        #cache_key = (
-        #    'thumbnail_grid:%s:%s:%s' %
-        #    (page, page_size, _search_values)
-        #)
-        #result = self.redis.get(cache_key)
-        #if result:
-        #    thumbnail_grid, count = tornado.escape.json_decode(result)
-        #else:
-        #    logging.warning('Thumbnail grid cache miss (%r)' % cache_key)
-        #    thumbnail_grid, count = yield tornado.gen.Task(
-        #        self.render_thumbnail_grid,
-        #        search, page, page_size
-        #    )
-        #    self.redis.setex(
-        #        cache_key,
-        #        tornado.escape.json_encode([thumbnail_grid, count]),
-        #        30 * 60
-        #    )
-        #    self.remember_thumbnail_grid_cache_key(cache_key)
-
         t0 = time.time()
         thumbnail_grid, count = yield tornado.gen.Task(
             self.render_thumbnail_grid,
             search, page, page_size
         )
         t1 = time.time()
-        logging.info('%s seconds to render thumbnail grid',  t1 - t0)
+        logging.info('%s seconds to render thumbnail grid', t1 - t0)
         data['thumbnail_grid'] = thumbnail_grid
 
         pagination = None
@@ -465,7 +440,7 @@ class ImageHandler(BaseHandler):
             self.redis.setex(
                 metadata_key,
                 json.dumps(metadata),
-                60 * 60 #* 24
+                60 * 60  # * 24
             )
 
         now = time.mktime(datetime.datetime.utcnow().timetuple())
@@ -734,7 +709,7 @@ class ImageCommentingHandler(BaseHandler):
             'approved': document['user'] == current_user,
             'date': datetime.datetime.utcnow(),
         }
-        _id = yield motor.Op(
+        yield motor.Op(
             self.db.comments.insert,
             comment_,
             safe=False
@@ -1375,7 +1350,10 @@ class TileMakerMixin(object):
             email,
             60 * 60 * 24 * 7
         )
-        unsubscribe_url = self.base_url + self.reverse_url('unsubscribe', unsub_key)
+        unsubscribe_url = self.base_url + self.reverse_url(
+            'unsubscribe',
+            unsub_key
+        )
 
         thumbnail_url = self.make_thumbnail_url(
             fileid,
@@ -1440,7 +1418,6 @@ class DownloadMixin(object):
         tornado.httpclient.AsyncHTTPClient.configure(
             tornado.curl_httpclient.CurlAsyncHTTPClient
         )
-        http_client = tornado.httpclient.AsyncHTTPClient()
         destination = self.make_destination(fileid)
         q = Queue(connection=self.redis)
         job = q.enqueue_call(
@@ -1474,7 +1451,7 @@ class DownloadMixin(object):
                 return
             # img.histogram() is a long list of integers
             histogram_hash = hashlib.md5(
-              ','.join(str(x) for x in img.histogram())
+                ','.join(str(x) for x in img.histogram())
             ).hexdigest()
 
             data = {
@@ -1493,7 +1470,10 @@ class DownloadMixin(object):
             )
             replica_image = yield motor.Op(cursor.next_object)
             if replica_image:
-                url = self.base_url + self.reverse_url('image', replica_image['fileid'])
+                url = self.base_url + self.reverse_url(
+                    'image',
+                    replica_image['fileid']
+                )
                 message = 'Picture matches an identical upload %s' % url
                 callback({'error': message})
 
