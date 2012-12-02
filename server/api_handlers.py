@@ -83,12 +83,6 @@ class APIUploadHandler(APIBaseHandler,
         if not self.user:
             raise tornado.web.HTTPError(403, "Key not recognized")
         response = yield tornado.gen.Task(self.run_preview, url)
-        #print "RESPONSE", response
-        #print "sleeping for 10 seconds"
-        #yield tornado.gen.Task(
-        #    tornado.ioloop.IOLoop.instance().add_timeout,
-        #    time.time() + 10
-        #)
         if 'error' in response:
             self.write(response)
         else:

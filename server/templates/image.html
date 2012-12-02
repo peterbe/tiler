@@ -7,10 +7,17 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
     <meta name="viewport" content="width=device-width">
-    {% if og_image_url %}
-    <meta property="og:image" content="{{ og_image_url }}">
-    {% end %}
     <title>{{ page_title }} on {{ PROJECT_TITLE }}</title>
+
+    {% if thumbnail_url %}
+    <meta property="og:image" content="{{ thumbnail_url }}">
+
+    <meta name="twitter:card" content="photo">
+    <meta name="twitter:url" content="{{ full_url }}">
+    <meta name="twitter:title" content="{{ page_title }}">
+    <meta name="twitter:description" content="{{ meta_description }}">
+    <meta name="twitter:image" content="{{ thumbnail_url }}">
+    {% end %}
 
     {% if can_edit or can_comment %}
     {% module LinkTags('bootstrap/css/bootstrap.min.css', 'bootstrap/css/bootstrap-modal.min.css', 'css/libs/leaflet.draw.css') %}

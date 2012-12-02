@@ -15,12 +15,13 @@ import premailer
 from bson.objectid import ObjectId
 import tornado.web
 import tornado.gen
+import tornado.escape
 import tornado.httpclient
 import tornado.curl_httpclient
 import tornado.ioloop
 from PIL import Image
 from tornado_utils.routes import route
-from tornado_utils.timesince import smartertimesince
+from tornado_utils.timesince import smartertimesince as _smartertimesince
 from rq import Queue
 import motor
 from utils import (
@@ -34,6 +35,11 @@ from emailer import send_url
 from downloader import download
 import settings
 
+
+def smartertimesince(d, now=None):
+    if isinstance(d, (int, float)):
+        d = datetime.datetime.utcnow() - datetime.timedelta(seconds=d)
+    return _smartertimesince(d, now=now)
 
 def sample_queue_job():
     # used to check that the queue workers are awake
@@ -136,12 +142,14 @@ class BaseHandler(tornado.web.RequestHandler):
         return url
 
     def clear_thumbnail_grid_cache(self):
+        logging.warning('clear_thumbnail_grid_cache is deprecated')
         cache_keys_key = 'thumbnail_grid:keys'
         for key in self.redis.lrange(cache_keys_key, 0, -1):
             self.redis.delete(key)
         self.redis.delete(cache_keys_key)
 
     def remember_thumbnail_grid_cache_key(self, key):
+        logging.warning('remember_thumbnail_grid_cache_key is deprecated')
         cache_keys_key = 'thumbnail_grid:keys'
         self.redis.lpush(cache_keys_key, key)
 
@@ -200,7 +208,6 @@ class ThumbnailGridRendererMixin(object):
         image = yield motor.Op(cursor.next_object)
         row = []
         count = 0
-        #_now = datetime.datetime.utcnow()
         while image:
             if image.get('width') and image.get('featured', True):
                 row.append(image)
@@ -215,9 +222,6 @@ class ThumbnailGridRendererMixin(object):
             data['recent_images_rows'].append(row)
 
         callback((self.render_string('_thumbnail_grid.html', **data), count))
-
-
-extra_html_regex = re.compile('<!--extra:(\w+)-->')
 
 
 @route('/', name='home')
@@ -237,6 +241,11 @@ class HomeHandler(BaseHandler, ThumbnailGridRendererMixin):
         search = {
             'date': {'$lt': then}
         }
+        # XXX we should use `featured: True` to this too but some old uploads
+        # don't have this value yet.
+        # We should run a migration script to A) make sure all images have
+        # this and B) make it indexed.
+
         if self.get_argument('user', None):
             search['user'] = self.get_argument('user')
             data['yours'] = True
@@ -249,26 +258,33 @@ class HomeHandler(BaseHandler, ThumbnailGridRendererMixin):
             v for (k, v) in search.items()
             if k != 'date'
         ]
-        cache_key = (
-            'thumbnail_grid:%s:%s:%s' %
-            (page, page_size, _search_values)
+        #cache_key = (
+        #    'thumbnail_grid:%s:%s:%s' %
+        #    (page, page_size, _search_values)
+        #)
+        #result = self.redis.get(cache_key)
+        #if result:
+        #    thumbnail_grid, count = tornado.escape.json_decode(result)
+        #else:
+        #    logging.warning('Thumbnail grid cache miss (%r)' % cache_key)
+        #    thumbnail_grid, count = yield tornado.gen.Task(
+        #        self.render_thumbnail_grid,
+        #        search, page, page_size
+        #    )
+        #    self.redis.setex(
+        #        cache_key,
+        #        tornado.escape.json_encode([thumbnail_grid, count]),
+        #        30 * 60
+        #    )
+        #    self.remember_thumbnail_grid_cache_key(cache_key)
+
+        t0 = time.time()
+        thumbnail_grid, count = yield tornado.gen.Task(
+            self.render_thumbnail_grid,
+            search, page, page_size
         )
-        result = self.redis.get(cache_key)
-        if result:
-            thumbnail_grid, count = tornado.escape.json_decode(result)
-        else:
-            logging.warning('Thumbnail grid cache miss (%r)' % cache_key)
-            thumbnail_grid, count = yield tornado.gen.Task(
-                self.render_thumbnail_grid,
-                search, page, page_size
-            )
-            self.redis.setex(
-                cache_key,
-                tornado.escape.json_encode([thumbnail_grid, count]),
-                30 * 60
-            )
-            self.remember_thumbnail_grid_cache_key(cache_key)
-        thumbnail_grid = self.insert_hits_html(thumbnail_grid)
+        t1 = time.time()
+        logging.info('%s seconds to render thumbnail grid',  t1 - t0)
         data['thumbnail_grid'] = thumbnail_grid
 
         pagination = None
@@ -357,50 +373,6 @@ class HomeHandler(BaseHandler, ThumbnailGridRendererMixin):
                 image = yield motor.Op(cursor.next_object)
         callback(fileids)
 
-    def insert_hits_html(self, html):
-        _now = datetime.datetime.utcnow()
-
-        def replacer(match):
-            fileid = match.groups()[0]
-            hit_key = 'hits:%s' % fileid
-            hit_month_key = (
-                'hits:%s:%s:%s' %
-                (_now.year, _now.month, fileid)
-            )
-            hits = self.redis.get(hit_key)
-            hits_this_month = (
-                self.redis.get(hit_month_key)
-            )
-            comments = self.redis.hget('comments', fileid)
-            if comments is not None:
-                comments = int(comments)
-                if comments == 1:
-                    comments = '1 comment'
-                else:
-                    comments = '%d comments' % comments
-            html = match.group()
-            if hits or comments:
-                hits = int(hits)
-                if hits == 1:
-                    h = '1 hit'
-                else:
-                    h = '%s hits' % format(hits, ',')
-                if hits_this_month and int(hits_this_month) != hits:
-                    hits_this_month = int(hits_this_month)
-                    if hits_this_month == 1:
-                        h += ' (1 hit this month)'
-                    else:
-                        h += (
-                            ' (%s hits this month)' %
-                            format(hits_this_month, ',')
-                        )
-                if comments:
-                    h += ', %s' % comments
-                html = h + '<br>'
-            return html
-        html = extra_html_regex.sub(replacer, html)
-        return html
-
 
 @route('/(\w{9})', 'image')
 class ImageHandler(BaseHandler):
@@ -442,11 +414,14 @@ class ImageHandler(BaseHandler):
         metadata = self.redis.get(metadata_key)
         #metadata=None;self.redis.delete('uploading:%s' % fileid)
 
-        if metadata and 'width' not in metadata:
+        if metadata and 'description' not in metadata:
             # legacy
             metadata = None
+        if metadata and 'width' not in metadata:
+            # legacy (old)
+            metadata = None
         if metadata and 'date_timestamp' not in metadata:
-            # legacy
+            # legacy (old)
             metadata = None
 
         if metadata is not None:
@@ -454,6 +429,7 @@ class ImageHandler(BaseHandler):
             content_type = metadata['content_type']
             owner = metadata['owner']
             title = metadata['title']
+            description = metadata['description']
             date_timestamp = metadata['date_timestamp']
             width = metadata['width']
             cdn_domain = metadata.get('cdn_domain')
@@ -470,6 +446,7 @@ class ImageHandler(BaseHandler):
             content_type = document['contenttype']
             owner = document['user']
             title = document.get('title', '')
+            description = document.get('description', '')
             width = document['width']
             cdn_domain = document.get('cdn_domain', None)
             date_timestamp = time.mktime(document['date'].timetuple())
@@ -478,6 +455,7 @@ class ImageHandler(BaseHandler):
                 'content_type': content_type,
                 'owner': owner,
                 'title': title,
+                'description': description,
                 'date_timestamp': date_timestamp,
                 'width': width,
                 'cdn_domain': cdn_domain,
@@ -487,7 +465,7 @@ class ImageHandler(BaseHandler):
             self.redis.setex(
                 metadata_key,
                 json.dumps(metadata),
-                60 * 60  # * 24
+                60 * 60 #* 24
             )
 
         now = time.mktime(datetime.datetime.utcnow().timetuple())
@@ -552,16 +530,26 @@ class ImageHandler(BaseHandler):
                     settings.ORIGINALS_BUCKET_ID
                 )
 
-        og_image_url = None
+        thumbnail_url = full_url = meta_description = None
         # if the image is old enough to have been given a chance to generate a
         # thumbnail, then set that
-        if age > 60:
-            og_image_url = self.make_thumbnail_url(
+        if age > 20 and not embedded:
+            thumbnail_url = self.make_thumbnail_url(
                 fileid,
                 100,
                 extension=extension,
                 absolute_url=True,
             )
+            if thumbnail_url.startswith('//'):
+                # eg. //xxx.cloudfront.net/thumbnails/100.jpg
+                # better be safe than sorry
+                thumbnail_url = self.request.protocol + thumbnail_url
+
+            full_url = self.base_url + self.reverse_url('image', fileid)
+            if description:
+                meta_description = description
+            else:
+                meta_description = 'Uploaded %s ago' % smartertimesince(age)
 
         if lat is not None and lng is not None:
             default_location = [lat, lng]
@@ -574,12 +562,16 @@ class ImageHandler(BaseHandler):
             page_title=title or '/%s' % fileid,
             image_filename=image_filename,
             ranges=ranges,
+            title=title,
+            description=description,
             default_zoom=default_zoom,
             extension=extension,
             can_edit=can_edit,
             can_comment=can_comment,
             age=age,
-            og_image_url=og_image_url,
+            thumbnail_url=thumbnail_url,
+            full_url=full_url,
+            meta_description=meta_description,
             prefix=cdn_domain and '//' + cdn_domain or '',
             embedded=embedded,
             hide_annotations=hide_annotations,
@@ -614,6 +606,8 @@ class ImageHitCounterHandler(BaseHandler):
         )
         self.redis.incr(hit_key)
         self.redis.incr(hit_month_key)
+        self.redis.hdel('metadata-rendered', fileid)
+
         self.write('OK')
 
 
@@ -659,13 +653,23 @@ class ImageMetadataHandler(BaseHandler):
     @tornado.web.asynchronous
     @tornado.gen.engine
     def get(self, fileid):
-        document = yield motor.Op(
-            self.db.images.find_one,
-            {'fileid': fileid}
-        )
+        cache_key = 'metadata:%s' % fileid
+        metadata = self.redis.get(cache_key)
+        if metadata is None:
+            document = yield motor.Op(
+                self.db.images.find_one,
+                {'fileid': fileid},
+            )
+            title = document.get('title')
+            description = document.get('description')
+        else:
+            metadata = tornado.escape.json_decode(metadata)
+            title = metadata.get('title')
+            description = metadata.get('description')
+
         data = {
-            'title': document.get('title'),
-            'description': document.get('description'),
+            'title': title,
+            'description': description,
         }
         self.write(data)
         self.finish()
@@ -798,12 +802,7 @@ class ImageMetadataMixin(object):
 
         metadata_key = 'metadata:%s' % document['fileid']
         self.redis.delete(metadata_key)
-
-        try:
-            self.clear_thumbnail_grid_cache()
-        except:
-            logging.error('Unable to clear_thumbnail_grid_cache()',
-                          exc_info=True)
+        self.redis.hdel('metadata-rendered', fileid)
 
         callback(data)
 
@@ -823,6 +822,7 @@ class ImageEditHandler(BaseHandler, ImageMetadataMixin):
             fileid,
             current_user
         )
+
         self.write(data)
         self.finish()
 
@@ -1032,6 +1032,8 @@ class ImageAnnotationsEditHandler(AnnotationBaseHandler):
         )
         annotation['title'] = title
 
+        self.redis.hdel('metadata-rendered', fileid)
+
         yours = annotation['user'] == current_user
         html = self.get_annotation_html(annotation, yours)
         self.write({'html': html, 'title': title})
@@ -1067,6 +1069,7 @@ class ImageAnnotationsDeleteHandler(AnnotationBaseHandler):
             self.db.annotations.remove,
             {'_id': marker['_id']}
         )
+        self.redis.hdel('metadata-rendered', fileid)
         self.write('OK')
         self.finish()
 
@@ -1087,6 +1090,7 @@ class DeleteImageMixin(object):
 
         metadata_key = 'metadata:%s' % fileid
         self.redis.delete(metadata_key)
+        self.redis.hdel('metadata-rendered', fileid)
 
         q = Queue(connection=self.redis)
         image_split = (
@@ -1101,12 +1105,6 @@ class DeleteImageMixin(object):
             image_split,
             self.application.settings['static_path']
         )
-
-        try:
-            self.clear_thumbnail_grid_cache()
-        except:
-            logging.error('Unable to clear_thumbnail_grid_cache()',
-                          exc_info=True)
 
         callback()
 
@@ -1273,13 +1271,6 @@ class ProgressUploadHandler(UploadHandler, ProgressMixin):
         fileid = self.get_argument('fileid')
         data = self.get_progress(fileid)
         self.write(data)
-
-
-def streaming_callback(destination_file, data):
-    #print "hello"
-    #from time import sleep
-    #sleep(0.1)
-    destination_file.write(data)
 
 
 class TileMakerMixin(object):
@@ -1451,16 +1442,6 @@ class DownloadMixin(object):
         )
         http_client = tornado.httpclient.AsyncHTTPClient()
         destination = self.make_destination(fileid)
-        #destination_file = open(destination, 'wb')
-        #response = yield tornado.gen.Task(
-        #    http_client.fetch,
-        #    url,
-        #    headers={},
-        #    request_timeout=600.0,  # 20.0 is the default
-        #    streaming_callback=functools.partial(my_streaming_callback,
-        #                                         destination_file)
-        #)
-        #destination_file.close()
         q = Queue(connection=self.redis)
         job = q.enqueue_call(
             func=download,
@@ -1524,8 +1505,6 @@ class DownloadMixin(object):
                 os.remove(destination)
                 return
 
-            #print "# Replicas", replicas
-
             if not document.get('size'):
                 data['size'] = os.stat(destination)[stat.ST_SIZE]
             yield motor.Op(
@@ -1581,12 +1560,6 @@ class DownloadMixin(object):
                 extension,
                 add_delay=add_delay,
             )
-            # clear the home page cache
-            try:
-                self.clear_thumbnail_grid_cache()
-            except:
-                logging.error('Unable to clear_thumbnail_grid_cache()',
-                              exc_info=True)
             if had_to_give_up:
                 logging.warning(
                     "Had to give up when generating tiles %r"

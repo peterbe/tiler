@@ -7,9 +7,10 @@
     <form>
       {% module xsrf_form_html() %}
       <label>Title:</label>
-      <input type="text" name="title" placeholder="" class="input-xlarge" maxlength="100">
+      <input type="text" name="title" placeholder=""
+       class="input-xlarge" maxlength="200" value="{{ title }}">
       <label>Description:</label>
-      <textarea name="description" class="input-xlarge" rows="3"></textarea>
+      <textarea name="description" class="input-xlarge" rows="3">{{ description }}</textarea>
     </form>
     <p style="float:right">
     <a href="#" class="btn btn-danger btn-mini delete">Delete</a>

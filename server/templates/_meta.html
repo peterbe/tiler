@@ -1,0 +1,8 @@
+{% module ShowFileSize(image['size']) %} &ndash;
+{% if image.get('width') and image.get('height') %}
+{% module Thousands(image['width']) %} &times; {% module Thousands(image['height']) %}<br>
+{% end %}
+uploaded {% module TimeSince(image['date']) %} ago
+{% if extras %}
+<br>{{ ', '.join(extras) }}
+{% end %}

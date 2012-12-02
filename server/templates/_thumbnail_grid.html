@@ -1,26 +1,19 @@
-      {% for i, images in enumerate(recent_images_rows) %}
-      <div class="row">
-        {% for j, image in enumerate(images) %}
-        <div class="span4 example">
-          {% if image.get('title') %}
-          <h3>{% module Truncate(image['title'], 20) %}</h3>
-          {% else %}
-          <h3>Example {{ (i * 3) + (j + 1) }}</h3>
-          {% end %}
-	  <a href="{{ reverse_url('image', image['fileid']) }}"
-          ><img class="thumbnail img-polaroid" src="{% module ThumbnailURL(image['fileid'], 100, image.get('contenttype', 'png')) %}" alt="Screenshot"></a>
-          <p>
-            {% module ShowFileSize(image['size']) %} &ndash;
-            {% if image.get('width') and image.get('height') %}
-            {% module Thousands(image['width']) %} &times; {% module Thousands(image['height']) %}<br>
-            {% end %}
-            uploaded {% module TimeSince(image['date']) %} ago<br>
-
-            <!--extra:{{ image['fileid'] }}-->
-
-            <a class="url" href="{{ reverse_url('image', image['fileid']) }}">Check it out &raquo;</a>
-          </p>
-        </div>
-	{% end %}
-      </div>
+  {% for i, images in enumerate(recent_images_rows) %}
+  <div class="row">
+    {% for j, image in enumerate(images) %}
+    <div class="span4 example">
+      {% if image.get('title') %}
+      <h3>{% module Truncate(image['title'], 20) %}</h3>
+      {% else %}
+      <h3>Example {{ (i * 3) + (j + 1) }}</h3>
       {% end %}
+      <a href="{{ reverse_url('image', image['fileid']) }}"
+      ><img class="thumbnail img-polaroid" src="{% module ThumbnailURL(image['fileid'], 100, image.get('contenttype', 'png')) %}" alt="Screenshot"></a>
+      <p>
+        {% module ShowMetaData(image) %}<br>
+        <a class="url" href="{{ reverse_url('image', image['fileid']) }}">Check it out &raquo;</a>
+      </p>
+    </div>
+    {% end %}
+  </div>
+  {% end %}

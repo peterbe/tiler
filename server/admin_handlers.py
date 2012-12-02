@@ -16,6 +16,7 @@ from utils import count_all_tiles, find_all_tiles, find_original
 from awsuploader import update_tiles_metadata
 import settings
 
+
 class AdminBaseHandler(BaseHandler):
 
     def prepare(self):
@@ -677,6 +678,7 @@ class AdminRecalculateSizeHandler(AdminBaseHandler):
 
         metadata_key = 'metadata:%s' % fileid
         self.redis.delete(metadata_key)
+        self.redis.hdel('metadata-rendered', fileid)
 
         url = self.reverse_url('admin_image', fileid)
         self.redirect(url)
