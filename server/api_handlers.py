@@ -123,7 +123,9 @@ class APIUploadProgressHandler(APIBaseHandler, ProgressMixin):
         sizeinfo = self.redis.get('sizeinfo:%s' % fileid)
         if sizeinfo is not None:
             sizeinfo = tornado.escape.json_decode(sizeinfo)
-            data.update(sizeinfo)
+            for key in ('width', 'height'):
+                if key in sizeinfo:
+                    data[key] = sizeinfo[key]
             base_url = (
                 '%s://%s' %
                 (self.request.protocol, self.request.host)

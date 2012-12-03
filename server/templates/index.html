@@ -42,12 +42,14 @@
 {% end %}
 
 {% block extra_footer %}
-        <p class="footer-stats">
-          <strong>{% module ShowFileSize(total_bytes_served) %} served</strong>
-          and <strong>{% module Thousands(total_hits) %} hits</strong>
-          {% if total_hits_this_month and total_hits_this_month != total_hits %}
-          ({% module Thousands(total_hits_this_month) %} this month)
-          {% end %}
-          across <strong>{% module Thousands(total_count) %} pictures</strong>.
-        </p>
+    {% if total_count %}
+      <p class="footer-stats">
+        <strong>{% module ShowFileSize(total_bytes_served) %} served</strong>
+        and <strong>{% module Thousands(total_hits) %} hits</strong>
+        {% if total_hits_this_month and total_hits_this_month != total_hits %}
+        ({% module Thousands(total_hits_this_month) %} this month)
+        {% end %}
+        across <strong>{% module Thousands(total_count) %} pictures</strong>.
+      </p>
+    {% end %}
 {% end %}

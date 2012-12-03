@@ -210,6 +210,8 @@ class ThumbnailGridRendererMixin(object):
         while image:
             if image.get('width') and image.get('featured', True):
                 row.append(image)
+            elif not image.get('width'):
+                print image
 
             count += 1
             image = yield motor.Op(cursor.next_object)
@@ -238,12 +240,9 @@ class HomeHandler(BaseHandler, ThumbnailGridRendererMixin):
             datetime.timedelta(seconds=60 * 5)
         )
         search = {
-            'date': {'$lt': then}
+            'date': {'$lt': then},
+            'featured': True
         }
-        # XXX we should use `featured: True` to this too but some old uploads
-        # don't have this value yet.
-        # We should run a migration script to A) make sure all images have
-        # this and B) make it indexed.
 
         if self.get_argument('user', None):
             search['user'] = self.get_argument('user')
@@ -296,10 +295,9 @@ class HomeHandler(BaseHandler, ThumbnailGridRendererMixin):
                     tornado.escape.json_encode(stats),
                     60
                 )
-
-        data['total_bytes_served'] = stats['total_bytes_served']
-        data['total_hits'] = stats['total_hits']
-        data['total_hits_this_month'] = stats['total_hits_this_month']
+            data['total_bytes_served'] = stats['total_bytes_served']
+            data['total_hits'] = stats['total_hits']
+            data['total_hits_this_month'] = stats['total_hits_this_month']
         self.render('index.html', **data)
 
     def get_stats_by_fileids(self, fileids, user=None):
@@ -1458,6 +1456,7 @@ class DownloadMixin(object):
                 'width': size[0],
                 'height': size[1],
                 'histogramhash': histogram_hash,
+                'featured': True,
             }
 
             replica_search = {
@@ -1487,6 +1486,7 @@ class DownloadMixin(object):
 
             if not document.get('size'):
                 data['size'] = os.stat(destination)[stat.ST_SIZE]
+
             yield motor.Op(
                 self.db.images.update,
                 {'_id': document['_id']},
@@ -1566,6 +1566,10 @@ class DownloadMixin(object):
             else:
                 logging.info('Skipping to send email')
         else:
+            yield motor.Op(
+                self.db.images.remove,
+                {'_id': document['_id']}
+            )
             try:
                 os.remove(destination)
             except:
