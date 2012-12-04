@@ -516,7 +516,7 @@ class ImageHandler(BaseHandler):
             if thumbnail_url.startswith('//'):
                 # eg. //xxx.cloudfront.net/thumbnails/100.jpg
                 # better be safe than sorry
-                thumbnail_url = self.request.protocol + thumbnail_url
+                thumbnail_url = self.request.protocol + ':' + thumbnail_url
 
             full_url = self.base_url + self.reverse_url('image', fileid)
             if description:
