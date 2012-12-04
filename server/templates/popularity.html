@@ -4,9 +4,12 @@
 
 {% block main %}
 <div class="row">
+   <div class="span12">
         <div class="page-header">
           <h2>Popularity contest (Top 10)</h2>
         </div>
+   </div>
+
    <div class="span4">
         <h3>Hits This Month</h3>
         <ol>
@@ -14,7 +17,8 @@
           <li>
           <strong>{{ number }} hits</strong>
 	  <a href="{{ reverse_url('image', image['fileid']) }}"
-          ><img class="thumbnail img-polaroid" src="{% module ThumbnailURL(image['fileid'], 100, image.get('contenttype', 'png')) %}"
+          ><img class="thumbnail img-polaroid"
+	        src="{% module ThumbnailURL(image['fileid'], 100, image.get('contenttype', image.get('contenttype', 'png'))) %}"
                 alt="{% if image.get('title') %}{{ image['title'] }}{% else %}Screenshot{% end %}"></a>
           </li>
           {% end %}
@@ -28,7 +32,7 @@
           <li>
           <strong>{{ number }} hits</strong>
 	  <a href="{{ reverse_url('image', image['fileid']) }}"
-          ><img class="thumbnail img-polaroid" src="{% module ThumbnailURL(image['fileid'], 100, image.get('contenttype', 'png')) %}"
+          ><img class="thumbnail img-polaroid" src="{% module ThumbnailURL(image['fileid'], 100, image.get('contenttype', image.get('contenttype', 'png'))) %}"
                 alt="{% if image.get('title') %}{{ image['title'] }}{% else %}Screenshot{% end %}"></a>
           </li>
           {% end %}
@@ -42,14 +46,12 @@
           <li>
           <strong>{% module ShowFileSize(number) %}</strong>
 	  <a href="{{ reverse_url('image', image['fileid']) }}"
-          ><img class="thumbnail img-polaroid" src="{% module ThumbnailURL(image['fileid'], 100, image.get('contenttype', 'png')) %}"
+          ><img class="thumbnail img-polaroid" src="{% module ThumbnailURL(image['fileid'], 100, image.get('contenttype', image.get('contenttype', 'png'))) %}"
                 alt="{% if image.get('title') %}{{ image['title'] }}{% else %}Screenshot{% end %}"></a>
           </li>
           {% end %}
         </ol>
     </div>
 
-
-  </div>
 </div>
 {% end %}

@@ -258,7 +258,7 @@ class HomeHandler(BaseHandler, ThumbnailGridRendererMixin):
             search, page, page_size
         )
         t1 = time.time()
-        logging.info('%s seconds to render thumbnail grid', t1 - t0)
+        logging.debug('%s seconds to render thumbnail grid', t1 - t0)
         data['thumbnail_grid'] = thumbnail_grid
 
         pagination = None
