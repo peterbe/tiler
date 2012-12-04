@@ -12,12 +12,12 @@
     {% if thumbnail_url %}
     <meta property="og:title" content="{{ page_title }}">
     <meta property="og:image" content="{{ thumbnail_url }}">
+    <meta property="og:url" content="{{ full_url }}">
+    <meta property="og:image" content="{{ thumbnail_url }}">
 
     <meta name="twitter:card" content="photo">
-    <meta name="twitter:url" content="{{ full_url }}">
-    <meta name="twitter:title" content="{{ page_title }}">
+    <meta name="twitter:site" content="hugepic">
     <meta name="twitter:description" content="{{ meta_description }}">
-    <meta name="twitter:image" content="{{ thumbnail_url }}">
     {% end %}
 
     {% if can_edit or can_comment %}
