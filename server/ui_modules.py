@@ -1,5 +1,7 @@
+import cgi
 import re
 import logging
+import urllib
 import urlparse
 import datetime
 import tornado.web
@@ -167,3 +169,16 @@ class ShowMetaData(tornado.web.UIModule):
                 comments = '%d comments' % comments
             extras.append(comments)
         return extras
+
+
+class QueryString(tornado.web.UIModule):
+
+    def render(self, **kwargs):
+        qs = cgi.parse_qs(self.request.query)
+        for key, value in kwargs.items():
+            if isinstance(value, tuple):
+                value = list(value)
+            elif not isinstance(value, list):
+                value = [value]
+            qs[key] = value
+        return urllib.urlencode(qs, True)

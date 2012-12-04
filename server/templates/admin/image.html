@@ -11,7 +11,7 @@
 
     <div style="float:right">
 	  <a href="{{ reverse_url('image', image['fileid']) }}"
-          ><img class="thumbnail img-polaroid" src="{% module ThumbnailURL(image['fileid'], 100, image.get('contenttype', 'png')) %}" alt="Screenshot"></a>
+          ><img class="thumbnail img-polaroid" src="{% module ThumbnailURL(image['fileid'], 300, image.get('contenttype', 'png')) %}" alt="Screenshot"></a>
 
     </div>
 

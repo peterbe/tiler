@@ -705,3 +705,50 @@ class AdminDeleteImageHandler(AdminBaseHandler, DeleteImageMixin):
 
         url = self.reverse_url('admin_home')
         self.redirect(url)
+
+
+@route('/admin/render-all-thumbnails', name='admin_render_all_thumbnails')
+class AdminRenderAllThumbnailsHandler(AdminBaseHandler):
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def get(self):
+
+        width = int(self.get_argument('width'))
+        data = {}
+        page = int(self.get_argument('page', 1))
+        page_size = 40
+        skip = page_size * (page - 1)
+        search = {}
+        total_count = yield motor.Op(self.db.images.find(search).count)
+        cursor = (
+            self.db.images.find(search)
+            .sort([('date', -1)])
+            .limit(page_size)
+            .skip(skip)
+        )
+        image = yield motor.Op(cursor.next_object)
+        images = []
+        count = 0
+        while image:
+            images.append(image)
+            count += 1
+            image = yield motor.Op(cursor.next_object)
+
+        pagination = None
+        if total_count > count:
+            # pagination in order!
+            pagination = {
+                'current_page': page,
+                'range': range(1, total_count / page_size + 2)
+            }
+            if (page - 1) * page_size > 0:
+                pagination['prev'] = page - 1
+            if page * page_size < total_count:
+                pagination['next'] = page + 1
+
+        data['pagination'] = pagination
+
+        data['images'] = images
+        data['total_count'] = total_count
+        self.render('admin/render-all-thumbnails.html', **data)

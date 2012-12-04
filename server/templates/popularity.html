@@ -18,7 +18,7 @@
           <strong>{{ number }} hits</strong>
 	  <a href="{{ reverse_url('image', image['fileid']) }}"
           ><img class="thumbnail img-polaroid"
-	        src="{% module ThumbnailURL(image['fileid'], 100, image.get('contenttype', image.get('contenttype', 'png'))) %}"
+	        src="{% module ThumbnailURL(image['fileid'], 100, image.get('contenttype', 'png')) %}"
                 alt="{% if image.get('title') %}{{ image['title'] }}{% else %}Screenshot{% end %}"></a>
           </li>
           {% end %}
@@ -32,7 +32,8 @@
           <li>
           <strong>{{ number }} hits</strong>
 	  <a href="{{ reverse_url('image', image['fileid']) }}"
-          ><img class="thumbnail img-polaroid" src="{% module ThumbnailURL(image['fileid'], 100, image.get('contenttype', image.get('contenttype', 'png'))) %}"
+          ><img class="thumbnail img-polaroid"
+                src="{% module ThumbnailURL(image['fileid'], 100, image.get('contenttype', 'png')) %}"
                 alt="{% if image.get('title') %}{{ image['title'] }}{% else %}Screenshot{% end %}"></a>
           </li>
           {% end %}
@@ -46,7 +47,8 @@
           <li>
           <strong>{% module ShowFileSize(number) %}</strong>
 	  <a href="{{ reverse_url('image', image['fileid']) }}"
-          ><img class="thumbnail img-polaroid" src="{% module ThumbnailURL(image['fileid'], 100, image.get('contenttype', image.get('contenttype', 'png'))) %}"
+          ><img class="thumbnail img-polaroid"
+                src="{% module ThumbnailURL(image['fileid'], 100, image.get('contenttype', 'png')) %}"
                 alt="{% if image.get('title') %}{{ image['title'] }}{% else %}Screenshot{% end %}"></a>
           </li>
           {% end %}

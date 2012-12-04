@@ -509,7 +509,7 @@ class ImageHandler(BaseHandler):
         if age > 20 and not embedded:
             thumbnail_url = self.make_thumbnail_url(
                 fileid,
-                100,
+                300,
                 extension=extension,
                 absolute_url=True,
             )
@@ -1279,13 +1279,14 @@ class TileMakerMixin(object):
                 self.application.settings['static_path'],
             ))
 
-        jobs.append(q.enqueue(
-            make_thumbnail,
-            image_split,
-            100,
-            extension,
-            self.application.settings['static_path'],
-        ))
+        for width_ in (100, 300):
+            jobs.append(q.enqueue(
+                make_thumbnail,
+                image_split,
+                width_,
+                extension,
+                self.application.settings['static_path'],
+            ))
 
         for zoom in ranges:
             q.enqueue(

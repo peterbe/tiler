@@ -1,0 +1,19 @@
+{% extends "admin_base.html" %}
+
+{% block main %}
+<div class="row">
+  <div class="span12">
+    <h2>{{ total_count }} Images</h2>
+
+    {% for image in images %}
+    <section>
+      <a href="{{ reverse_url('admin_image', image['fileid']) }}">
+      <img class="thumbnail img-polaroid" src="{% module ThumbnailURL(image['fileid'], 300, image.get('contenttype', 'png')) %}" alt="Screenshot">
+      </a>
+    </section>
+    {% end %}
+
+    {% include "../_pagination.html" %}
+  </div>
+</div>
+{% end %}
