@@ -125,7 +125,8 @@ class BaseHandler(tornado.web.RequestHandler):
         return self.application.settings.get('cdn_prefix')
 
     def make_thumbnail_url(self, fileid, width, extension='png',
-                           absolute_url=False):
+                           absolute_url=False,
+                           use_cdn=True):
         url = '/thumbnails/%s/%s/%s/%s.%s' % (
             fileid[:1],
             fileid[1:3],
@@ -134,7 +135,7 @@ class BaseHandler(tornado.web.RequestHandler):
             extension
         )
         cdn_prefix = self.get_cdn_prefix()
-        if cdn_prefix:
+        if cdn_prefix and use_cdn:
             url = cdn_prefix + url
         elif absolute_url:
             url = '%s%s' % (self.base_url, url)

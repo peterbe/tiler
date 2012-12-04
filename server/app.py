@@ -96,6 +96,9 @@ class Application(tornado.web.Application):
             cdn_prefix=cdn_prefix,
             CLOSURE_LOCATION=os.path.join(os.path.dirname(__file__),
                                           "static", "compiler.jar"),
+            twitter_consumer_key=settings.TWITTER_CONSUMER_KEY,
+            twitter_consumer_secret=settings.TWITTER_CONSUMER_SECRET,
+
         )
         routed_handlers.append(
             tornado.web.url('/.*?',

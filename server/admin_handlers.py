@@ -2,6 +2,7 @@ import stat
 import datetime
 import urllib
 import time
+import functools
 import os
 import logging
 import tornado.web
@@ -10,7 +11,7 @@ from PIL import Image
 from tornado_utils.routes import route
 from rq import Queue
 import motor
-
+import tornado.auth
 from handlers import BaseHandler, TileMakerMixin, DeleteImageMixin
 from utils import count_all_tiles, find_all_tiles, find_original
 from awsuploader import update_tiles_metadata
@@ -18,6 +19,9 @@ import settings
 
 
 class AdminBaseHandler(BaseHandler):
+
+    def check_xsrf_cookie(self):
+        pass
 
     def prepare(self):
         user = self.get_current_user()
@@ -253,13 +257,14 @@ class AdminImageHandler(AdminBaseHandler):
 
         awsupdating_key = 'awsupdated:%s' % fileid
         awsupdating_locked = self.redis.get(awsupdating_key) is not None
-
         unsubscribed = self.redis.sismember('unsubscribed', image['user'])
+        tweet_id = self.redis.hget('tweets', image['fileid'])
         data = {
             'image': image,
             'uploading_locked': uploading_locked,
             'awsupdating_locked': awsupdating_locked,
             'unsubscribed': unsubscribed,
+            'tweet_id': tweet_id,
         }
 
         self.render('admin/image.html', **data)
@@ -752,3 +757,78 @@ class AdminRenderAllThumbnailsHandler(AdminBaseHandler):
         data['images'] = images
         data['total_count'] = total_count
         self.render('admin/render-all-thumbnails.html', **data)
+
+
+@route('/admin/(?P<fileid>\w{9})/tweet/', name='admin_tweet')
+class AdminTweetImageHandler(AdminBaseHandler,
+                             tornado.auth.TwitterMixin):
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def get(self, fileid):
+        image = yield motor.Op(
+            self.db.images.find_one,
+            {'fileid': fileid}
+        )
+        if not image:
+            raise tornado.web.HTTPError(404, "File not found")
+        print image
+        text = image['title'] + ' '
+        text += self.base_url + self.reverse_url('image', image['fileid']) + '\n'
+        text += '@hugepic\n'
+
+        if image['contenttype'] == 'image/jpeg':
+            extension = 'jpg'
+        elif image['contenttype'] == 'image/png':
+            extension = 'png'
+        else:
+            raise NotImplementedError
+
+        text += self.make_thumbnail_url(
+            image['fileid'],
+            300,
+            extension=extension,
+            absolute_url=True,
+            use_cdn=False
+        )
+        data = {
+            'image': image,
+            'text': text,
+        }
+        self.render('admin/tweet.html', **data)
+        #self.write(data)
+        #self.finish()
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def post(self, fileid):
+        image = yield motor.Op(
+            self.db.images.find_one,
+            {'fileid': fileid}
+        )
+        if not image:
+            raise tornado.web.HTTPError(404, "File not found")
+
+        text = self.get_argument('text')
+
+        self.twitter_request(
+            "/statuses/update",
+            post_args={"status": text},
+            access_token={
+                'key': settings.TWITTER_ACCESS_TOKEN,
+                'secret': settings.TWITTER_ACCESS_TOKEN_SECRET
+            },
+            callback=self.async_callback(
+                functools.partial(self._on_posted, fileid)
+            )
+        )
+
+    def _on_posted(self, fileid, new_entry):
+        if not new_entry:
+            # Call failed; perhaps missing permission?
+            self.authorize_redirect()
+            return
+
+        self.redis.hset('tweets', fileid, new_entry['id'])
+
+        url = self.reverse_url('admin_image', fileid)
+        self.redirect(url)

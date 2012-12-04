@@ -149,6 +149,15 @@
         <i>none</i>
         {% end %}
       </dd>
+
+      <dt>Tweet:</dt>
+      <dd>
+        {% if tweet_id %}
+        <a href="https://twitter.com/hugepic/status/{{ tweet_id }}">Yes!</a>
+        {% else %}
+        <a href="tweet/">Not yet</a>
+        {% end %}
+      </dd>
     </dl>
 
     <a href="#" class="delete-image" style="font-size:.8em">Delete</a>
