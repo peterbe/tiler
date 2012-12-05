@@ -38,7 +38,7 @@ class APIHandler(BaseHandler, APIKeyMixin):
         if user:
             your_key = self.get_key(user)
             if your_key is None:
-                your_key = self.new_key(user)
+                your_key = self.set_new_key(user)
         else:
             your_key = None
 
