@@ -56,6 +56,7 @@ g circle {
 #permalink-modal a.chosen:hover {
   text-decoration: none;
 }
+input.permalink { width: 330px; }
 
 /* For editing */
 input.button-primary {
