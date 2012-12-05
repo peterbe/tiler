@@ -152,10 +152,10 @@
 
       <dt>Tweet:</dt>
       <dd>
-        {% if tweet_id %}
-        <a href="https://twitter.com/hugepic/status/{{ tweet_id }}">Yes!</a>
+        {% if image.get('tweet') %}
+        <a href="https://twitter.com/hugepic/status/{{ image['tweet'] }}">Yes!</a>
         {% else %}
-        <a href="tweet/">Not yet</a>
+        <a href="{{ reverse_url('admin_tweet', image['fileid']) }}">Not yet</a>
         {% end %}
       </dd>
     </dl>

@@ -112,6 +112,9 @@ class AdminBaseHandler(BaseHandler):
     def attach_comments_info(self, image):
         image['comments'] = self.redis.hget('comments', image['fileid'])
 
+    def attach_tweet_info(self, image):
+        image['tweet'] = self.redis.hget('tweets', image['fileid'])
+
 
 @route('/admin/', name='admin_home')
 class AdminHomeHandler(AdminBaseHandler):
@@ -186,6 +189,7 @@ class AdminHomeHandler(AdminBaseHandler):
             if comments is not None:
                 comments = int(comments)
                 image['comments'] = comments
+            self.attach_tweet_info(image)
             images.append(image)
             image = yield motor.Op(cursor.next_object)
 
@@ -241,6 +245,7 @@ class AdminImageHandler(AdminBaseHandler):
         self.attach_tiles_info(image)
         self.attach_hits_info(image)
         self.attach_comments_info(image)
+        self.attach_tweet_info(image)
         served = self.redis.hget('bytes_served', image['fileid'])
         if served is not None:
             image['bytes_served'] = int(served)
@@ -263,13 +268,11 @@ class AdminImageHandler(AdminBaseHandler):
         awsupdating_key = 'awsupdated:%s' % fileid
         awsupdating_locked = self.redis.get(awsupdating_key) is not None
         unsubscribed = self.redis.sismember('unsubscribed', image['user'])
-        tweet_id = self.redis.hget('tweets', image['fileid'])
         data = {
             'image': image,
             'uploading_locked': uploading_locked,
             'awsupdating_locked': awsupdating_locked,
             'unsubscribed': unsubscribed,
-            'tweet_id': tweet_id,
         }
 
         self.render('admin/image.html', **data)

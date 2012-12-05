@@ -22,9 +22,10 @@
         <td>User</td>
         <td>CDN</td>
         <td>Featured</td>
+        <td>Tweet</td>
         <td>Size</td>
         <td>Width</td>
-        <td>Ranges</td>
+        {#<td>Ranges</td>#}
         <td><abbr title="Comments">Cmts</abbr></td>
         <td>Hits</td>
         <td>Served</td>
@@ -50,10 +51,20 @@
 	{% end %}
       {% end %}
       </td>
-      <td>{% if image.get('featured', True) %}
+      <td>{% if image['featured'] %}
       <i class="icon-ok"></i>
       {% else %}
       <i class="icon-minus-sign"></i>
+      {% end %}
+      </td>
+      <td>{% if image.get('tweet') %}
+      <a href="https://twitter.com/hugepic/status/{{ image.get('tweet') }}"><i class="icon-ok"></i></a>
+      {% else %}
+        {% if image.get('title') %}
+        <a href="{{ reverse_url('admin_tweet', image['fileid']) }}"><i class="icon-flag"></i></a>
+	{% else %}
+        <i class="icon-minus-sign"></i>
+	{% end %}
       {% end %}
       </td>
       <td>{% module ShowFileSize(image['size']) %}</td>
@@ -62,7 +73,8 @@
             {% module Thousands(image['width']) %} &times; {% module Thousands(image['height']) %}<br>
           {% end %}
       </td>
-      <td>{{ ','.join(str(int(x)) for x in image['ranges']) }}</td>
+
+      {#<td>{{ ','.join(str(int(x)) for x in image['ranges']) }}</td>#}
       <td>
         {% if image.get('comments') %}
         {{ image['comments'] }}
