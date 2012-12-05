@@ -8,7 +8,7 @@
     {% for image in images %}
     <section>
       <a href="{{ reverse_url('admin_image', image['fileid']) }}">
-      <img class="thumbnail img-polaroid" src="{% module ThumbnailURL(image['fileid'], 300, image.get('contenttype', 'png')) %}" alt="Screenshot">
+      <img class="thumbnail img-polaroid" src="{% module ThumbnailURL(image['fileid'], width, image.get('contenttype', 'png')) %}" alt="Screenshot">
       </a>
     </section>
     {% end %}

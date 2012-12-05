@@ -11,3 +11,4 @@ boto
 lxml
 cssselect
 premailer
+twython

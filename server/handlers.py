@@ -1744,7 +1744,7 @@ class TileHandler(BaseHandler):
 
 @route(r'/thumbnails/(?P<image>\w{1}/\w{2}/\w{6})/(?P<width>\w{1,3})'
        r'.(?P<extension>png|jpg)',
-       name='thumbail')
+       name='thumbnail')
 class ThumbnailHandler(BaseHandler):
 
     @tornado.web.asynchronous

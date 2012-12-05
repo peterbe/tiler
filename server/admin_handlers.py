@@ -2,7 +2,6 @@ import stat
 import datetime
 import urllib
 import time
-import functools
 import os
 import logging
 import tornado.web
@@ -13,8 +12,14 @@ from rq import Queue
 import motor
 import tornado.auth
 from handlers import BaseHandler, TileMakerMixin, DeleteImageMixin
-from utils import count_all_tiles, find_all_tiles, find_original
+from utils import (
+    count_all_tiles,
+    find_all_tiles,
+    find_original,
+    make_thumbnail
+)
 from awsuploader import update_tiles_metadata
+from tweeter import tweet_with_media
 import settings
 
 
@@ -614,7 +619,10 @@ class AdminAWSUpdateHandler(AdminBaseHandler):
         buckets = []
         bucket = []
         for tile in all_tiles:
-            tile_path = tile.replace(self.application.settings['static_path'], '')
+            tile_path = tile.replace(
+                self.application.settings['static_path'],
+                ''
+            )
             if tile_path.startswith('/'):
                 tile_path = tile_path[1:]
             bucket.append(tile_path)
@@ -718,7 +726,6 @@ class AdminRenderAllThumbnailsHandler(AdminBaseHandler):
     @tornado.web.asynchronous
     @tornado.gen.engine
     def get(self):
-
         width = int(self.get_argument('width'))
         data = {}
         page = int(self.get_argument('page', 1))
@@ -756,12 +763,12 @@ class AdminRenderAllThumbnailsHandler(AdminBaseHandler):
 
         data['images'] = images
         data['total_count'] = total_count
+        data['width'] = width
         self.render('admin/render-all-thumbnails.html', **data)
 
 
 @route('/admin/(?P<fileid>\w{9})/tweet/', name='admin_tweet')
-class AdminTweetImageHandler(AdminBaseHandler,
-                             tornado.auth.TwitterMixin):
+class AdminTweetImageHandler(AdminBaseHandler):
     @tornado.web.asynchronous
     @tornado.gen.engine
     def get(self, fileid):
@@ -771,32 +778,15 @@ class AdminTweetImageHandler(AdminBaseHandler,
         )
         if not image:
             raise tornado.web.HTTPError(404, "File not found")
-        print image
         text = image['title'] + ' '
-        text += self.base_url + self.reverse_url('image', image['fileid']) + '\n'
+        text += self.base_url
+        text += self.reverse_url('image', image['fileid']) + '\n'
         text += '@hugepic\n'
-
-        if image['contenttype'] == 'image/jpeg':
-            extension = 'jpg'
-        elif image['contenttype'] == 'image/png':
-            extension = 'png'
-        else:
-            raise NotImplementedError
-
-        text += self.make_thumbnail_url(
-            image['fileid'],
-            300,
-            extension=extension,
-            absolute_url=True,
-            use_cdn=False
-        )
         data = {
             'image': image,
             'text': text,
         }
         self.render('admin/tweet.html', **data)
-        #self.write(data)
-        #self.finish()
 
     @tornado.web.asynchronous
     @tornado.gen.engine
@@ -809,26 +799,52 @@ class AdminTweetImageHandler(AdminBaseHandler,
             raise tornado.web.HTTPError(404, "File not found")
 
         text = self.get_argument('text')
-
-        self.twitter_request(
-            "/statuses/update",
-            post_args={"status": text},
-            access_token={
-                'key': settings.TWITTER_ACCESS_TOKEN,
-                'secret': settings.TWITTER_ACCESS_TOKEN_SECRET
-            },
-            callback=self.async_callback(
-                functools.partial(self._on_posted, fileid)
+        include_thumbnail = self.get_argument('include_thumbnail', False)
+        if include_thumbnail:
+            image_split = (
+                fileid[:1] +
+                '/' +
+                fileid[1:3] +
+                '/' +
+                fileid[3:]
             )
-        )
+            if image['contenttype'] == 'image/jpeg':
+                extension = 'jpg'
+            elif image['contenttype'] == 'image/png':
+                extension = 'png'
+            else:
+                raise NotImplementedError(image['contenttype'])
+            thumbnail_path = make_thumbnail(
+                image_split,
+                300,
+                extension,
+                self.application.settings['static_path']
+            )
 
-    def _on_posted(self, fileid, new_entry):
-        if not new_entry:
-            # Call failed; perhaps missing permission?
-            self.authorize_redirect()
-            return
+            q = Queue('low', connection=self.redis)
+            job = q.enqueue(
+                tweet_with_media,
+                text,
+                thumbnail_path
+            )
+        else:
+            raise NotImplementedError('regular tweeting not done yet')
 
-        self.redis.hset('tweets', fileid, new_entry['id'])
+        delay = 1
+        total_delay = 0
+        ioloop_instance = tornado.ioloop.IOLoop.instance()
+        while job.result is None:
+            yield tornado.gen.Task(
+                ioloop_instance.add_timeout,
+                time.time() + delay
+            )
+            delay += 1
+            total_delay += delay
+            if total_delay > 5:
+                break
+        if job.result:
+            id_ = job.result
+            self.redis.hset('tweets', fileid, id_)
 
         url = self.reverse_url('admin_image', fileid)
         self.redirect(url)
