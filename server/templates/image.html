@@ -20,11 +20,8 @@
     <meta name="twitter:description" content="{{ meta_description }}">
     {% end %}
 
-    {% if can_edit or can_comment %}
-    {% module LinkTags('bootstrap/css/bootstrap.min.css', 'bootstrap/css/bootstrap-modal.min.css', 'css/libs/leaflet.draw.css') %}
-    {% end %}
-
-    {% module LinkTags('css/libs/leaflet.css', 'css/image.css') %}
+    {% module LinkTags('bootstrap/css/bootstrap-customimage.min.css') %}
+    {% module LinkTags('css/libs/leaflet.css', 'css/libs/leaflet.draw.css', 'css/image.css') %}
     <!--[if lte IE 8]>
     <link rel="stylesheet" href="//cdn.leafletjs.com/leaflet-0.4.5/leaflet.ie.css" />
     <![endif]-->
@@ -69,6 +66,7 @@
 
     {% module xsrf_form_html() %}
 
+    {% include "_permalink_modal.html" %}
     {% if can_comment %}
     {% include "_comment_modal.html" %}
     {% end %}
@@ -79,18 +77,17 @@
     {% end %}
 
     {% if debug %}
-      {% module ScriptTags('libs/jquery-1.8.2.min.js') %}
+      {% module ScriptTags('libs/jquery-1.8.3.min.js') %}
     {% else %}
-      <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+      <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
     {% end %}
 
     <script>
     var MARKER_SHADOW_URL = '{{ static_url('libs/images/marker-shadow.png') }}',
         MARKER_ICON_URL = '{{ static_url('libs/images/marker-icon.png') }}';
     </script>
-    {% module ScriptTags('libs/leaflet.min.js', 'leafletmap.js', 'libs/head.load.min.js') %}
+    {% module ScriptTags('libs/leaflet.min.js', 'leafletmap.js', 'libs/head.load.min.js', 'bootstrap/js/bootstrap-modal.min.js') %}
     <script>
-    var modal_js_url = '{% module StaticURL('bootstrap/js/bootstrap-modal.min.js') %}';
     {% if can_comment %}
     var comment_url = '{% module StaticURL('comment.js') %}';
     {% end %}
@@ -99,18 +96,16 @@
     var draw_url = '{% module StaticURL('libs/leaflet.draw.min.js') %}';
     {% end %}
     function map_loaded_callback(map) {
-      setTimeout(function() {
-        {% if can_edit %}
-        head.js(modal_js_url, editing_url, draw_url, function() {
+     {% if can_edit %}
+        head.js(editing_url, draw_url, function() {
           Editing.setup(map, '{{ fileid }}');
         });
-	{% end %}
-	{% if can_comment %}
-        head.js(modal_js_url, comment_url, function() {
+     {% end %}
+     {% if can_comment %}
+        head.js(comment_url, function() {
           Commenting.setup(map, '{{ fileid }}');
         });
-	{% end %}
-      }, 1000);
+      {% end %}
     }
     </script>
   </body>

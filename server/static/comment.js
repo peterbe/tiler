@@ -5,10 +5,10 @@ var Commenting = (function() {
 
   function _opener() {
     container.modal({
-       backdrop: false,
+       backdrop: true,
       keyboard: true
     }).modal('show');
-    $('#comment-modal .label-success').hide();
+    $('.label-success', container).hide();
   }
 
   // Close edit modal

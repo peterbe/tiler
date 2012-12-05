@@ -44,33 +44,17 @@ g circle {
 
 
 /* For permalink modal */
-#permalink {
-  position: absolute;
-  top: 0;
-  left: 40%;
-  padding: 20px 20px;
-  background: #111111;
-  border-top: #888888;
-  border-left: #888888;
-  color: #efefef;
-  border-bottom-left-radius: 8px;
-  border-bottom-right-radius: 8px;
+#permalink-modal p {
+  margin-top: 25px;
 }
-#permalink input {
-  width: 300px;
+#permalink-modal a.switch {
+  font-size: 80%;
 }
-#permalink a.close-permalink {
-  color: #efefef;
-  font-size: 140%;
+#permalink-modal a.chosen {
+  color: #666;
+}
+#permalink-modal a.chosen:hover {
   text-decoration: none;
-}
-
-#permalink p {
-  margin-top: 15px;
-}
-#permalink p a {
-  color: #efefef;
-  text-decoration: underline;
 }
 
 /* For editing */

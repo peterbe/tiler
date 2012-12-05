@@ -1,0 +1,21 @@
+<div id="permalink-modal" class="modal hide fade">
+  <div class="modal-header">
+    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+    <h3>Link to right here</h3>
+  </div>
+  <div class="modal-body">
+    <form>
+
+      <input name="permalink" class="input-xlarge">
+      <a href="#" class="switch with chosen">with position</a>
+      <a href="#" class="switch without">without position</a>
+    </form>
+
+    <p>
+        <a href="{{ reverse_url('embed', fileid) }}">You can embed this on your own page</a>
+    </p>
+  </div>
+  <div class="modal-footer">
+    <a href="#" class="btn closer">Close</a>
+  </div>
+</div>
