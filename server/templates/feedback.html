@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block page_title %}Feedback on {{ PROJECT_TITLE }}{% end %}
+
+{% block main %}
+<div class="row">
+  <div class="span12">
+    <h2>Feedback</h2>
+
+    {% if posted %}
+      <div class="alert alert-success">
+        <button type="button" class="close" data-dismiss="alert">×</button>
+        <strong>Thank you!</strong> Your feedback has been posted. Thanks for helping out!
+      </div>
+    {% end %}
+
+    <form action="." method="post">
+    {% module xsrf_form_html() %}
+    <label>Your name</label>
+    <input type="text" class="input-xlarge" name="name" spellcorrect="false" value="{% if name %}{{ name }}{% end %}">
+    <label>Your email</label>
+    <input type="email" class="input-xlarge" name="email" value="{% if user %}{{ user }}{% end %}">
+    <label>What's up?</label>
+    <select name="type">
+      <option value="feedback">General feedback</option>
+      <option value="bug">Bug report</option>
+      <option value="feature">Feature request or idea</option>
+      <option value="question">Question</option>
+      <option value="other">Other</option>
+    </select>
+    <label>Comment</label>
+    <textarea name="comment" rows="5" style="width:500px"></textarea>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Submit feedback</button>
+      <button type="button" class="btn" onclick="location.href='/'">Cancel</button>
+    </div>
+    </form>
+  </div>
+</div>
+{% end %}

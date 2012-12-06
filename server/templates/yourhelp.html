@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block page_title %}Your help on {{ PROJECT_TITLE }}{% end %}
+
+{% block main %}
+<div class="row">
+  <div class="span12">
+    <h2>I need your help</h2>
+
+    <h4>This project has no marketing budget and therefore need your help to become
+    successful.
+    </h4>
+
+    <p>I know it's a lot to ask for in a world where lots of sites compete for
+    your attention but if you like the site and would also like to see many
+    others playing with it your small contribution can go a very long way.
+    You might not have time or use for HUGEpic but one of your friends might.</p>
+
+    <h4>Ways to help...</h4>
+    <ul>
+      <li>Share the link to your
+      {% if user %}
+      <a href="/?user={{ user }}">upload(s)</a>
+      {% else %}
+      upload(s)
+      {% end %}
+      on your blog, Facebook, Twitter etc.</li>
+      <li>Follow <a href="https://twitter.com/hugepic">@hugepic</a> on
+        Twitter and re-tweet uploads you like.</li>
+      <li>Contribute <a href="{{ reverse_url('feedback') }}">feedback, thoughts and bug reports</a></li>
+    </ul>
+
+    <section>
+    <p><strong>Kind regards, <a href="{{ reverse_url('about') }}">Peter</a></strong></p>
+    </section>
+
+  </div>
+</div>
+{% end %}

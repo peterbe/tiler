@@ -29,7 +29,7 @@ from utils import (
 from optimizer import optimize_images, optimize_thumbnails
 from awsuploader import upload_tiles, upload_original
 from resizer import make_resize
-from emailer import send_url
+from emailer import send_url, send_feedback
 from downloader import download
 import settings
 
@@ -1984,6 +1984,54 @@ class UnsubscribeHandler(BaseHandler):
             'email': email,
         }
         self.render('unsubscribed.html', **data)
+
+
+@route(r'/yourhelp/', 'yourhelp')
+class YourHelpHandler(BaseHandler):
+
+    def get(self):
+        data = {
+        }
+        self.render('yourhelp.html', **data)
+
+
+@route(r'/feedback/', 'feedback')
+class FeedbackHandler(BaseHandler):
+
+    def get(self):
+        user = self.get_current_user()
+        name = ''
+        if user:
+            name = self.redis.hget('name', user)
+        data = {
+            'name': name,
+            'posted': self.get_argument('posted', False),
+        }
+        self.render('feedback.html', **data)
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def post(self):
+        if not self.get_argument('comment', None):
+            self.write('No comment? Go back and try again')
+            self.finish()
+            return
+        document = {
+            'comment': self.get_argument('comment').strip(),
+            'name': self.get_argument('name', u'').strip(),
+            'email': self.get_argument('email', u'').strip(),
+            'type': self.get_argument('type', u'').strip(),
+        }
+        yield motor.Op(self.db.images.insert, document)
+        document['current_user'] = self.get_current_user()
+
+        q = Queue(connection=self.redis)
+        q.enqueue(
+            send_feedback,
+            document,
+            debug=self.application.settings['debug']
+        )
+        self.redirect(self.reverse_url('feedback') + '?posted=1')
 
 
 # this handler gets automatically appended last to all handlers inside app.py

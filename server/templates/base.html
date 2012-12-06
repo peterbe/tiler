@@ -6,7 +6,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
+    <link rel="shortcut icon" href="{% module StaticURL('images/favicon.ico') %}">
     <title>{% block page_title %}{{ PROJECT_TITLE }}{% end %}</title>
 
     {% module LinkTags('bootstrap/css/bootstrap.min.css', 'bootstrap/css/bootstrap-responsive.min.css') %}
@@ -106,7 +106,11 @@
 	|
 	<a href="{{ reverse_url('popularity') }}">Popularity Contest</a>
 	|
-	<a href="{{ reverse_url('api') }}">Developers' API</a>
+	<a href="{{ reverse_url('api') }}" title="For the technically inclined folks">Developers' API</a>
+	|
+	<a href="{{ reverse_url('feedback') }}" title="Feedback, comments, questions, bug reports etc.">Feedback</a>
+	|
+	<a href="https://twitter.com/hugepic" target="_blank">@hugepic on Twitter</a>
 	</p>
       </footer>
 
