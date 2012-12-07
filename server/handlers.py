@@ -2022,7 +2022,7 @@ class FeedbackHandler(BaseHandler):
             'email': self.get_argument('email', u'').strip(),
             'type': self.get_argument('type', u'').strip(),
         }
-        yield motor.Op(self.db.images.insert, document)
+        yield motor.Op(self.db.feedback.insert, document)
         document['current_user'] = self.get_current_user()
 
         q = Queue(connection=self.redis)
