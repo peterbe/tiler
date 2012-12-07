@@ -2021,6 +2021,7 @@ class FeedbackHandler(BaseHandler):
             'name': self.get_argument('name', u'').strip(),
             'email': self.get_argument('email', u'').strip(),
             'type': self.get_argument('type', u'').strip(),
+            'date': datetime.datetime.utcnow(),
         }
         yield motor.Op(self.db.feedback.insert, document)
         document['current_user'] = self.get_current_user()

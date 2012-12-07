@@ -6,6 +6,7 @@ import os
 import logging
 import tornado.web
 import tornado.gen
+from bson.objectid import ObjectId
 from PIL import Image
 from tornado_utils.routes import route
 from rq import Queue
@@ -227,6 +228,49 @@ class AdminHomeHandler(AdminBaseHandler):
         total_comments = yield motor.Op(self.db.comments.find().count)
         data['total_comments'] = total_comments
         self.render('admin/home.html', **data)
+
+
+@route('/admin/feedback/', name='admin_feedbacks')
+class AdminFeedbackHandler(AdminBaseHandler):
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def get(self):
+        data = {}
+        total_count = yield motor.Op(self.db.feedback.find().count)
+        data['total_count'] = total_count
+        cursor = (
+            self.db.feedback.find()
+            .sort([('date', -1)])
+            #.limit(page_size)
+            #.skip(skip)
+        )
+        feedbacks = []
+        feedback = yield motor.Op(cursor.next_object)
+        while feedback:
+            feedbacks.append(feedback)
+            feedback = yield motor.Op(cursor.next_object)
+        data['feedbacks'] = feedbacks
+        self.render('admin/feedbacks.html', **data)
+
+
+@route('/admin/feedback/(?P<_id>\w+)', name='admin_feedback_item')
+class AdminFeedbackItemHandler(AdminBaseHandler):
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def get(self, _id):
+        feedback = yield motor.Op(
+            self.db.feedback.find_one,
+            {'_id': ObjectId(_id)}
+        )
+        del feedback['_id']
+        feedback['date'] = unicode(feedback['date'])
+        self.write('<html>')
+        for key, value in feedback.items():
+            self.write('<p><strong>%s</strong>: %s</p>' % (key, value))
+        self.write('</html>')
+        self.finish()
 
 
 @route('/admin/(?P<fileid>\w{9})/', name='admin_image')

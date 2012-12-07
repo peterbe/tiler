@@ -2,5 +2,6 @@
 
 {% block nav_items %}
   <li {% if page_on == '/admin/' %}class="active"{% end %}><a href="{{ reverse_url('admin_home') }}">Home</a></li>
+  <li {% if page_on == '/feedback/' %}class="active"{% end %}><a href="{{ reverse_url('admin_feedbacks') }}">Feedback</a></li>
   <li><a href="/">Exit Admin</a></li>
 {% end %}

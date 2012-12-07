@@ -1,0 +1,33 @@
+{% extends "admin_base.html" %}
+
+{% block main %}
+<div class="row">
+  <div class="span12">
+    <h2>Feedback ({{ total_count }})</h2>
+    <table class="table table-condensed">
+    <thead>
+      <tr>
+        <td>Date</td>
+        <td>Name</td>
+        <td>Email</td>
+        <td>Type</td>
+        <td>Comment</td>
+      </tr>
+    </thead>
+    {% for feedback in feedbacks %}
+    <tbody>
+    <tr>
+      <td>
+        <a href="{{ reverse_url('admin_feedback_item', feedback['_id']) }}">{{ feedback['date'] }}</a>
+      </td>
+      <td>{{ feedback['name'] }}</td>
+      <td>{{ feedback['email'] }}</td>
+      <td>{{ feedback['type'] }}</td>
+      <td>{{ feedback['comment'] }}</td>
+    </tr>
+    </tbody>
+    {% end %}
+    </table>
+  </div>
+</div>
+{% end %}
