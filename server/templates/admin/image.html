@@ -44,7 +44,9 @@
       <dd>
         <a href="mailto:{{ image['user'] }}">{{ image['user'] }}</a>
         <a href="#" class="resend" style="font-size:.8em">resend</a>
+        {% if unsubscribed %}
         <strong style="font-size:.8em;color:red">Note! has unsubscribed</strong>
+        {% end %}
         <form class="resend" style="display:none"
               action="{{ reverse_url('admin_resend_email', image['fileid']) }}"
               method="post">

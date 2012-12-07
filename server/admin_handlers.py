@@ -1,9 +1,11 @@
+import uuid
 import stat
 import datetime
 import urllib
 import time
 import os
 import logging
+import collections
 import tornado.web
 import tornado.gen
 from bson.objectid import ObjectId
@@ -12,6 +14,7 @@ from tornado_utils.routes import route
 from rq import Queue
 import motor
 import tornado.auth
+import premailer
 from handlers import BaseHandler, TileMakerMixin, DeleteImageMixin
 from utils import (
     count_all_tiles,
@@ -21,6 +24,7 @@ from utils import (
 )
 from awsuploader import update_tiles_metadata
 from tweeter import tweet_with_media
+from emailer import send_newsletter
 import settings
 
 
@@ -99,13 +103,14 @@ class AdminBaseHandler(BaseHandler):
             image['found_tiles'] < image['expected_tiles']
         )
 
-    def attach_hits_info(self, image):
-        _now = datetime.datetime.utcnow()
+    def attach_hits_info(self, image, now=None):
+        if not now:
+            now = datetime.datetime.utcnow()
         fileid = image['fileid']
         hit_key = 'hits:%s' % fileid
         hit_month_key = (
             'hits:%s:%s:%s' %
-            (_now.year, _now.month, fileid)
+            (now.year, now.month, fileid)
         )
         image['hits'] = self.redis.get(hit_key)
         image['hits_this_month'] = self.redis.get(hit_month_key)
@@ -115,6 +120,10 @@ class AdminBaseHandler(BaseHandler):
 
     def attach_tweet_info(self, image):
         image['tweet'] = self.redis.hget('tweets', image['fileid'])
+
+    def attach_bytes_served_info(self, image):
+        served = self.redis.hget('bytes_served', image['fileid'])
+        image['bytes_served'] = served and int(served) or 0
 
 
 @route('/admin/', name='admin_home')
@@ -816,6 +825,7 @@ class AdminRenderAllThumbnailsHandler(AdminBaseHandler):
 
 @route('/admin/(?P<fileid>\w{9})/tweet/', name='admin_tweet')
 class AdminTweetImageHandler(AdminBaseHandler):
+
     @tornado.web.asynchronous
     @tornado.gen.engine
     def get(self, fileid):
@@ -895,3 +905,188 @@ class AdminTweetImageHandler(AdminBaseHandler):
 
         url = self.reverse_url('admin_image', fileid)
         self.redirect(url)
+
+
+@route('/admin/newsletter/', name='admin_newsletter')
+class AdminPreviewNewsletterHandler(AdminBaseHandler):
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def get(self):
+        data = {}
+        start, people = yield tornado.gen.Task(self.get_people)
+        data['start'] = start
+        data['people'] = people
+        data['people_users'] = sorted(people.keys())
+        data['people_names'] = dict(
+            (x, self.redis.hget('name', x))
+            for x in people
+        )
+        data['emailssent'] = dict(
+            (x, self.redis.hget('emailssent', x) == start.strftime('%Y%m'))
+            for x in people
+        )
+        data['unsubscribed'] = dict(
+            (x, self.redis.sismember('unsubscribed', x))
+            for x in people
+        )
+
+        self.render('admin/newsletter.html', **data)
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def post(self):
+        email = self.get_argument('email')
+        preview = self.get_argument('preview', False)
+        start, people = yield tornado.gen.Task(
+            self.get_people,
+            email=email
+        )
+        images = people[email]
+
+        unsub_key = uuid.uuid4().hex[:12]
+        self.redis.setex(
+            'unsubscribe:%s' % unsub_key,
+            email,
+            60 * 60 * 24 * 7
+        )
+        unsubscribe_url = self.base_url + self.reverse_url(
+            'unsubscribe',
+            unsub_key
+        )
+
+        data = {
+            'count': len(images),
+            'email': email,
+            'images': images,
+            'start': images[0]['date'],
+            'home_url': self.base_url + '/',
+            'unsubscribe_url': unsubscribe_url,
+        }
+        for image in images:
+            image['full_url'] = (
+                self.base_url + self.reverse_url('image', image['fileid'])
+            )
+            if image['contenttype'] == 'image/jpeg':
+                extension = 'jpg'
+            elif image['contenttype'] == 'image/png':
+                extension = 'png'
+            else:
+                raise NotImplementedError(image['contenttype'])
+            image['thumbnail_url'] = self.make_thumbnail_url(
+                image['fileid'],
+                100,
+                extension=extension,
+                absolute_url=True,
+                use_cdn=False,
+            )
+
+            image['comments'] = []
+            cursor = (
+                self.db.comments.find({'image': image['_id']})
+                .sort([('date', -1)])
+            )
+            comment = yield motor.Op(cursor.next_object)
+            while comment:
+                if comment['zoom'] <= 2:
+                    template = '/%.2f/%.1f/%.1f'
+                elif comment['zoom'] >= 5:
+                    template = '/%.2f/%.3f/%.3f'
+                else:
+                    template = '/%.2f/%.2f/%.2f'
+                comment['url'] = (
+                    image['full_url'] + template % (
+                        comment['zoom'],
+                        comment['center'][0],
+                        comment['center'][1],
+                    )
+                )
+
+                image['comments'].append(comment)
+                comment = yield motor.Op(cursor.next_object)
+
+        if len(images) > 1:
+            total_area = sum(
+                x['width'] * x['height']
+                for x in images
+            )
+            data.update({
+                'total_area': total_area,
+                'total_hits': sum(int(x['hits']) for x in images
+                                  if x['hits']),
+                'total_hits_this_month': sum(int(x['hits_this_month'])
+                                             for x in images
+                                             if x['hits_this_month']),
+                'total_served': sum(x['bytes_served'] for x in images),
+                'total_comments': sum(len(x['comments']) for x in images),
+            })
+            data['total_area'] = total_area
+
+
+        html = self.render_string('_newsletter_email.html', **data)
+        html = premailer.transform(
+            html,
+            base_url=self.base_url
+        )
+        if self.get_argument('preview', False):
+            pass
+        else:
+            if len(images) == 1:
+                subject = 'Your HUGEpic - %s' % start.strftime('%B %Y')
+            else:
+                subject = 'Your HUGEpics - %s' % start.strftime('%B %Y')
+            self.redis.hset('emailssent', email, start.strftime('%Y%m'))
+            q = Queue(connection=self.redis)
+            logging.info('Enqueueing email to %s', email)
+            job = q.enqueue(
+                send_newsletter,
+                email,
+                subject,
+                html,
+                #plain_body=email_body,
+                debug=self.application.settings['debug']
+            )
+            html = html.replace(
+                '<!-- BODY -->',
+                '<h1>POSTED!</h1>' +
+                '<a href="%s">Back</a>' %
+                self.reverse_url('admin_newsletter')
+            )
+
+        self.write(html)
+        self.finish()
+
+    @tornado.gen.engine
+    def get_people(self, callback, email=None):
+        last = start = datetime.datetime.utcnow()
+        _this_month = start.month
+
+        while _this_month == start.month:
+            last = start
+            start -= datetime.timedelta(days=1)
+        _prev_month = start.month
+        while _prev_month == start.month:
+            start -= datetime.timedelta(days=1)
+        start = start.replace(hour=0, minute=0, second=0)
+        start += datetime.timedelta(days=1)
+        last = last.replace(hour=0, minute=0, second=0)
+        search = {
+            'date': {'$lt': last, '$gte': start}
+        }
+        if email:
+           search['user'] = email
+        cursor = (
+            self.db.images.find(search)
+            .sort([('date', -1)])
+        )
+        image = yield motor.Op(cursor.next_object)
+        people = collections.defaultdict(list)
+        while image:
+            self.attach_hits_info(image, now=start)
+            self.attach_comments_info(image)
+            self.attach_tweet_info(image)
+            self.attach_bytes_served_info(image)
+            people[image['user']].append(image)
+            image = yield motor.Op(cursor.next_object)
+
+        callback((start, people))

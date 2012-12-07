@@ -1,0 +1,164 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<!-- If you delete this meta tag, the ground will open and swallow you. -->
+<meta name="viewport" content="width=device-width" />
+
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+{% if len(images) == 1 %}
+<title>Your HUGEpic - {{ start.strftime('%B %Y') }}</title>
+{% else %}
+<title>Your HUGEpics - {{ start.strftime('%B %Y') }}</title>
+{% end %}
+
+<style type="text/css">
+.thumbnail {
+  display: block;
+  padding: 4px;
+  line-height: 20px;
+  border: 1px solid #ddd;
+  -webkit-border-radius: 4px;
+     -moz-border-radius: 4px;
+          border-radius: 4px;
+  -webkit-box-shadow: 0 1px 3px rgba(0, 0, 0, 0.055);
+     -moz-box-shadow: 0 1px 3px rgba(0, 0, 0, 0.055);
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.055);
+  -webkit-transition: all 0.2s ease-in-out;
+     -moz-transition: all 0.2s ease-in-out;
+       -o-transition: all 0.2s ease-in-out;
+          transition: all 0.2s ease-in-out;
+}
+{% include "_email.css" %}
+</style>
+
+</head>
+
+<body bgcolor="#FFFFFF" topmargin="0" leftmargin="0" marginheight="0" marginwidth="0">
+
+
+<!-- BODY -->
+<table class="body-wrap" bgcolor="">
+  <tr>
+    <td></td>
+    <td class="container" align="" bgcolor="#FFFFFF">
+
+      <!-- content -->
+      <div class="content">
+        <table>
+          <tr>
+            <td>
+
+	    {% if len(images) == 1 %}
+              <h1>Your HUGEpic - {{ start.strftime('%b %Y') }}</h1>
+              <p class="lead">You uploaded 1 picture
+  	        to <a href="{{ home_url }}">HUGEpic</a> in {{ start.strftime('%B %Y') }}.
+	      </p>
+
+	    {% else %}
+              <h1>Your HUGEpics - {{ start.strftime('%b %Y') }}</h1>
+              <p class="lead">You uploaded <strong>{{ len(images) }} pictures</strong>
+  	        to <a href="{{ home_url }}">HUGEpic</a> in {{ start.strftime('%B %Y') }}.
+	      </p>
+
+
+              <p>Your <strong>{{ count }} pictures</strong> span a total area of
+  	        <strong>{% module Thousands(total_area) %} pixels squared</strong>
+		and has had a total of
+		<strong>{{ total_hits_this_month }} hits</strong> this month.<br />
+		{% if total_comments %}
+		Your pictures have collected a total of
+		<strong>{{ total_comments }}
+		{% if total_comments == 1 %}comment{% else %}comments{% end %}
+		</strong> which you can see below.<br />
+		{% end %}
+		In total people have downloaded
+		<strong>{% module ShowFileSize(total_served) %}</strong> by checking out
+		your pictures.
+	      </p>
+	    {% end %}
+            </td>
+          </tr>
+        </table>
+      </div><!-- /content -->
+
+      {% for image in images %}
+      <!-- content -->
+      <div class="content">
+
+        <table bgcolor="">
+          <tr>
+            <td class="small" width="20%" style="vertical-align: top; padding-right:10px;"><a href="{{ image['full_url'] }}"><img class="thumbnail" src="{{ image['thumbnail_url'] }}" alt="Thumbnail" border="0" /></a></td>
+            <td style="vertical-align: top">
+              <h4>{% if image.get('title') %}
+                                                        {{ image['title'] }}
+                                                        {% else %}
+                                                        <em>No title set yet</em>
+                                                        {% end %}
+                                                        <small><a href="{{ image['full_url'] }}">/{{ image['fileid'] }}</a></small>
+                                                        {# <small>{{ image['date'].strftime('%d %B') }}</small></h4> #}
+              <p class="">
+{% module ShowFileSize(image['size']) %} &ndash;
+{% if image.get('width') and image.get('height') %}
+{% module Thousands(image['width']) %} &times; {% module Thousands(image['height']) %}<br />
+{% end %}
+uploaded {{ image['date'].strftime('%d %B') }}<br />
+{% if image['hits_this_month'] %}
+{{ image['hits_this_month'] or 0 }} hits in {{ start.strftime('%B') }}
+{% else %}No hits
+{% end %}
+                                                        </p>
+{% if image['comments'] %}
+  <p>
+  <strong>
+  {% if len(image['comments']) == 1 %}1 comment
+  {% else %}{{ len(image['comments']) }} comments
+  {% end %}
+  </strong>
+  </p>
+  <ul>
+    {% for comment in image['comments'] %}
+    <li>
+      <strong>By {% if comment.get('name') %}{{ comment['name'] }}
+      {% else %}someone anonymous
+      {% end %}
+      </strong>
+      {{ comment['comment'] }}
+      <small>
+      <a href="{{ comment['url'] }}">show where</a>
+      </small>
+    </li>
+    {% end %}
+  </ul>
+{% end %}
+
+            </td>
+          </tr>
+        </table>
+
+      </div><!-- /content -->
+                        {% end %}
+
+      <!-- content -->
+      <div class="content"><table bgcolor="">
+        <tr>
+          <td>
+
+            <!-- Callout Panel -->
+            <p class="callout">HUGEpic needs your help!
+            &nbsp;
+              <a href="{{ reverse_url('yourhelp', absolute=True) }}">See what you can do &raquo;</a>
+            </p><!-- /callout panel -->
+
+          </td>
+        </tr>
+      </table></div><!-- /content -->
+
+    </td>
+    <td></td>
+  </tr>
+</table><!-- /BODY -->
+
+{% include "_email_footer.html" %}
+
+</body>
+</html>

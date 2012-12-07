@@ -44,3 +44,17 @@ def send_feedback(document, debug=False):
         from_,
         [settings.ADMIN_EMAILS[0]],
     )
+
+
+def send_newsletter(recipient, subject, html_body, plain_body=None, debug=False):
+    from_ = 'HUGEPic <noreply@hugepic.io>'
+    logging.info('Sending email to %s', recipient)
+    send_multipart_email(
+        _get_backend(debug),
+        plain_body,
+        html_body,
+        subject,
+        [recipient],
+        from_,
+        bcc=getattr(settings, 'BCC_EMAIL', None)
+    )

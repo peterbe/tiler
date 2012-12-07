@@ -116,6 +116,13 @@ class BaseHandler(tornado.web.RequestHandler):
                 logging.debug("%r does not exist" % path)
         return super(BaseHandler, self).static_url(path)
 
+    def reverse_url(self, name, *args, **kwargs):
+        """Alias for `Application.reverse_url`."""
+        url = super(BaseHandler, self).reverse_url(name, *args)
+        if kwargs.get('absolute'):
+            url = self.base_url + url
+        return url
+
     def get_cdn_prefix(self):
         """return something that can be put in front of the static filename
         E.g. if filename is '/static/image.png' and you return

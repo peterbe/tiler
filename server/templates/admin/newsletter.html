@@ -1,0 +1,76 @@
+{% extends "admin_base.html" %}
+
+{% block extra_head %}
+<style type="text/css">
+div.image-preview { border-bottom:1px solid #efefef; }
+</style>
+{% end %}
+
+{% block extra_js %}
+<script type="text/javascript">
+$(function() {
+  $('a.image-preview').click(function() {
+    var c = $(this).parents('.preview-container');
+    $('div.image-preview', c).toggle();
+    return false;
+  });
+});
+</script>
+{% end %}
+
+
+{% block main %}
+<div class="row">
+  <div class="span12">
+    <h2>Newsletter - {{ start.strftime('%B %Y') }}</h2>
+
+    <form action="." method="post">
+    {% for email in people_users %}
+    <section>
+      <h4>
+      <input type="radio" name="email" value="{{ email }}">
+      {% if emailssent[email] %}
+      <strong style="font-size:.8em;color:red">ALREADY SENT TO</strong>
+      {% end %}
+      {{ email }}
+      {% if people_names.get(email) %}({{ people_names[email] }}){% end %}
+       --
+       {{ len(people[email]) }} pictures
+      {% if unsubscribed.get(email) %}
+      <strong style="font-size:.8em;color:red">Note! has unsubscribed</strong>
+      {% end %}
+      </h4>
+
+      <div class="preview-container">
+        <a href="#" class="image-preview">Show pictures</a>
+        {% for image in people[email] %}
+        <div class="image-preview" style="display:none">
+          <a href="{{ reverse_url('admin_image', image['fileid']) }}"
+             style="float:left"
+            ><img class="thumbnail img-polaroid"
+                  src="{% module ThumbnailURL(image['fileid'], 100, image.get('contenttype', 'png')) %}" alt="Screenshot"></a>
+           <dl style="margin-left: 120px">
+             <dt>Hits</dt>
+             <dd>{{ image['hits_this_month'] or 0 }}</dd>
+             <dt>Comments</dt>
+             <dd>{{ image['comments'] or 0 }}</dd>
+             <dt>Tweeted</dt>
+             <dd>{{ image['tweet'] or 'not yet' }}</dd>
+           </dl>
+        </div>
+
+        {% end %}
+      </div>
+    </section>
+    {% end %}
+
+    <div class="form-actions">
+      <button type="submit" name="preview" value="preview" class="btn btn-primary">Preview selected</button>
+      <button type="submit" class="btn btn-primary">Send it</button>
+    </div>
+
+    </form>
+
+  </div>
+</div>
+{% end %}

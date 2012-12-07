@@ -44,7 +44,6 @@ p.the-url a { font-size: 140%; font-weight: bold; }
                                                 </p>
                                                 {% end %}
 
-						<!-- social & contact -->
 					</td>
 				</tr>
 			</table>
@@ -55,31 +54,8 @@ p.the-url a { font-size: 140%; font-weight: bold; }
 	</tr>
 </table><!-- /BODY -->
 
-<!-- FOOTER -->
-<table class="footer-wrap">
-	<tr>
-		<td></td>
-		<td class="container">
 
-				<!-- content -->
-				<div class="content">
-				<table>
-				<tr>
-					<td align="center">
-						<p>
-							<a href="{{ home_url }}" style="font-weight:bold">HUGEpic</a> |
-							<a href="{{ home_url }}?user={{ email }}">Your uploads</a> |
-							<a href="{{ unsubscribe_url }}"><unsubscribe>Unsubscribe</unsubscribe></a>
-						</p>
-					</td>
-				</tr>
-			</table>
-				</div><!-- /content -->
-
-		</td>
-		<td></td>
-	</tr>
-</table><!-- /FOOTER -->
+{% include "_email_footer.html" %}
 
 </body>
 </html>
