@@ -105,8 +105,17 @@ uploaded {{ image['date'].strftime('%d %B') }}<br />
 {% if image['hits_this_month'] %}
 {{ image['hits_this_month'] or 0 }} hits in {{ start.strftime('%B') }}
 {% else %}No hits
+{% end %}<br />
+{% if image['tweet'] %}
+ <a href="https://twitter.com/hugepic/status/{{ image['tweet'] }}">Tweeted by @hugepic</a>
+{% else %}
+  {% if image.get('title') %}
+  Not tweeted by <a href="https://twitter.com/hugepic">@hugepic</a> yet.
+  {% else %}
+  Not tweeted by <a href="https://twitter.com/hugepic">@hugepic</a> because it doesn't have a title.
+  {% end %}
 {% end %}
-                                                        </p>
+</p>
 {% if image['comments'] %}
   <p>
   <strong>

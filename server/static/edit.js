@@ -224,13 +224,10 @@ var Editing = (function() {
     // prefill form
     $.getJSON(pathname + '/metadata', function(response) {
       var c = $('#edit-modal');
-      if (response.title) {
+      if (response.title.length) {
         $('[name="title"]', c).val(response.title);
       } else {
-        var age = $('body').data('age');
-        if (age < (60 * 60)) {
-          $('a.edit').click();
-        }
+        Editing.open();
       }
       if (response.description) {
         $('[name="description"]', c).val(response.description);

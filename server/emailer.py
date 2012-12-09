@@ -56,5 +56,5 @@ def send_newsletter(recipient, subject, html_body, plain_body=None, debug=False)
         subject,
         [recipient],
         from_,
-        bcc=getattr(settings, 'BCC_EMAIL', None)
+#        bcc=getattr(settings, 'BCC_EMAIL', None)
     )

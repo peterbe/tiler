@@ -981,6 +981,8 @@ class AdminPreviewNewsletterHandler(AdminBaseHandler):
                 use_cdn=False,
             )
 
+            image['tweet'] = self.redis.hget('tweets', image['fileid'])
+
             image['comments'] = []
             cursor = (
                 self.db.comments.find({'image': image['_id']})
@@ -1024,6 +1026,8 @@ class AdminPreviewNewsletterHandler(AdminBaseHandler):
 
 
         html = self.render_string('_newsletter_email.html', **data)
+        if isinstance(html, str):
+            html = unicode(html, 'utf-8')
         html = premailer.transform(
             html,
             base_url=self.base_url
