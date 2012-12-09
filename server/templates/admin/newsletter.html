@@ -29,7 +29,7 @@ $(function() {
     <section>
       <h4>
       <input type="checkbox" name="emails" value="{{ email }}"
-       {% if not emailssent[email] %}checked{% end %}>
+       {% if not emailssent[email] and not unsubscribed.get(email) %}checked{% end %}>
       <input type="radio" name="email" value="{{ email }}">
       {% if emailssent[email] %}
       <strong style="font-size:.8em;color:red">ALREADY SENT TO</strong>
@@ -59,7 +59,13 @@ $(function() {
              <dt>Comments</dt>
              <dd>{{ image['comments'] or 0 }}</dd>
              <dt>Tweeted</dt>
-             <dd>{{ image['tweet'] or 'not yet' }}</dd>
+             <dd>
+	       {% if image['tweet'] %}
+	       <a href="https://twitter.com/hugepic/status/{{ image['tweet'] }}">Yes!</a>
+	       {% else %}
+	       not yet
+	       {% end %}
+	     </dd>
            </dl>
         </div>
 
