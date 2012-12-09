@@ -227,7 +227,7 @@ var Editing = (function() {
       if (response.title.length) {
         $('[name="title"]', c).val(response.title);
       } else {
-        Editing.open();
+        _opener();
       }
       if (response.description) {
         $('[name="description"]', c).val(response.description);
@@ -238,11 +238,11 @@ var Editing = (function() {
   return {
      setup: function(map, fileid) {
        pathname = '/' + fileid;
-       _prefill_form();
        Drawing.setup(map, fileid);
        // by the simple fact that this file is loaded,
        // we can show the Edit button
        $('a.leaflet-control-custom-edit').show();
+       _prefill_form();
      },
     open: function() {
       _opener();
