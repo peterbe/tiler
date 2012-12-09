@@ -52,6 +52,8 @@ $(function() {
             ><img class="thumbnail img-polaroid"
                   src="{% module ThumbnailURL(image['fileid'], 100, image.get('contenttype', 'png')) %}" alt="Screenshot"></a>
            <dl style="margin-left: 120px">
+             <dt>Title</dt>
+             <dd>{{ image.get('title', '*no title*') }}</dd>
              <dt>Hits</dt>
              <dd>{{ image['hits_this_month'] or 0 }}</dd>
              <dt>Comments</dt>
