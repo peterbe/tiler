@@ -28,6 +28,8 @@ $(function() {
     {% for email in people_users %}
     <section>
       <h4>
+      <input type="checkbox" name="emails" value="{{ email }}"
+       {% if not emailssent[email] %}checked{% end %}>
       <input type="radio" name="email" value="{{ email }}">
       {% if emailssent[email] %}
       <strong style="font-size:.8em;color:red">ALREADY SENT TO</strong>
@@ -67,6 +69,7 @@ $(function() {
     <div class="form-actions">
       <button type="submit" name="preview" value="preview" class="btn btn-primary">Preview selected</button>
       <button type="submit" class="btn btn-primary">Send it</button>
+      <button type="submit" name="sendall" value="sendall" class="btn btn-primary">Send to all checked</button>
     </div>
 
     </form>

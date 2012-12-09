@@ -936,128 +936,133 @@ class AdminPreviewNewsletterHandler(AdminBaseHandler):
     @tornado.web.asynchronous
     @tornado.gen.engine
     def post(self):
-        email = self.get_argument('email')
         preview = self.get_argument('preview', False)
-        start, people = yield tornado.gen.Task(
-            self.get_people,
-            email=email
-        )
-        images = people[email]
+        if self.get_argument('sendall', False):
+            emails = self.get_arguments('emails')
+        else:
+            emails = [self.get_argument('email')]
 
-        unsub_key = uuid.uuid4().hex[:12]
-        self.redis.setex(
-            'unsubscribe:%s' % unsub_key,
-            email,
-            60 * 60 * 24 * 7
-        )
-        unsubscribe_url = self.base_url + self.reverse_url(
-            'unsubscribe',
-            unsub_key
-        )
-
-        data = {
-            'count': len(images),
-            'email': email,
-            'images': images,
-            'start': images[0]['date'],
-            'home_url': self.base_url + '/',
-            'unsubscribe_url': unsubscribe_url,
-        }
-        for image in images:
-            image['full_url'] = (
-                self.base_url + self.reverse_url('image', image['fileid'])
+        for email in emails:
+            start, people = yield tornado.gen.Task(
+                self.get_people,
+                email=email
             )
-            if image['contenttype'] == 'image/jpeg':
-                extension = 'jpg'
-            elif image['contenttype'] == 'image/png':
-                extension = 'png'
-            else:
-                raise NotImplementedError(image['contenttype'])
-            image['thumbnail_url'] = self.make_thumbnail_url(
-                image['fileid'],
-                100,
-                extension=extension,
-                absolute_url=True,
-                use_cdn=False,
+            images = people[email]
+
+            unsub_key = uuid.uuid4().hex[:12]
+            self.redis.setex(
+                'unsubscribe:%s' % unsub_key,
+                email,
+                60 * 60 * 24 * 7
+            )
+            unsubscribe_url = self.base_url + self.reverse_url(
+                'unsubscribe',
+                unsub_key
             )
 
-            image['tweet'] = self.redis.hget('tweets', image['fileid'])
-
-            image['comments'] = []
-            cursor = (
-                self.db.comments.find({'image': image['_id']})
-                .sort([('date', -1)])
-            )
-            comment = yield motor.Op(cursor.next_object)
-            while comment:
-                if comment['zoom'] <= 2:
-                    template = '/%.2f/%.1f/%.1f'
-                elif comment['zoom'] >= 5:
-                    template = '/%.2f/%.3f/%.3f'
+            data = {
+                'count': len(images),
+                'email': email,
+                'images': images,
+                'start': images[0]['date'],
+                'home_url': self.base_url + '/',
+                'unsubscribe_url': unsubscribe_url,
+            }
+            for image in images:
+                image['full_url'] = (
+                    self.base_url + self.reverse_url('image', image['fileid'])
+                )
+                if image['contenttype'] == 'image/jpeg':
+                    extension = 'jpg'
+                elif image['contenttype'] == 'image/png':
+                    extension = 'png'
                 else:
-                    template = '/%.2f/%.2f/%.2f'
-                comment['url'] = (
-                    image['full_url'] + template % (
-                        comment['zoom'],
-                        comment['center'][0],
-                        comment['center'][1],
-                    )
+                    raise NotImplementedError(image['contenttype'])
+                image['thumbnail_url'] = self.make_thumbnail_url(
+                    image['fileid'],
+                    100,
+                    extension=extension,
+                    absolute_url=True,
+                    use_cdn=False,
                 )
 
-                image['comments'].append(comment)
+                image['tweet'] = self.redis.hget('tweets', image['fileid'])
+
+                image['comments'] = []
+                cursor = (
+                    self.db.comments.find({'image': image['_id']})
+                    .sort([('date', -1)])
+                )
                 comment = yield motor.Op(cursor.next_object)
+                while comment:
+                    if comment['zoom'] <= 2:
+                        template = '/%.2f/%.1f/%.1f'
+                    elif comment['zoom'] >= 5:
+                        template = '/%.2f/%.3f/%.3f'
+                    else:
+                        template = '/%.2f/%.2f/%.2f'
+                    comment['url'] = (
+                        image['full_url'] + template % (
+                            comment['zoom'],
+                            comment['center'][0],
+                            comment['center'][1],
+                        )
+                    )
 
-        if len(images) > 1:
-            total_area = sum(
-                x['width'] * x['height']
-                for x in images
-            )
-            data.update({
-                'total_area': total_area,
-                'total_hits': sum(int(x['hits']) for x in images
-                                  if x['hits']),
-                'total_hits_this_month': sum(int(x['hits_this_month'])
-                                             for x in images
-                                             if x['hits_this_month']),
-                'total_served': sum(x['bytes_served'] for x in images),
-                'total_comments': sum(len(x['comments']) for x in images),
-            })
-            data['total_area'] = total_area
+                    image['comments'].append(comment)
+                    comment = yield motor.Op(cursor.next_object)
+
+            if len(images) > 1:
+                total_area = sum(
+                    x['width'] * x['height']
+                    for x in images
+                )
+                data.update({
+                    'total_area': total_area,
+                    'total_hits': sum(int(x['hits']) for x in images
+                                      if x['hits']),
+                    'total_hits_this_month': sum(int(x['hits_this_month'])
+                                                 for x in images
+                                                 if x['hits_this_month']),
+                    'total_served': sum(x['bytes_served'] for x in images),
+                    'total_comments': sum(len(x['comments']) for x in images),
+                })
+                data['total_area'] = total_area
 
 
-        html = self.render_string('_newsletter_email.html', **data)
-        if isinstance(html, str):
-            html = unicode(html, 'utf-8')
-        html = premailer.transform(
-            html,
-            base_url=self.base_url
-        )
-        if self.get_argument('preview', False):
-            pass
-        else:
-            if len(images) == 1:
-                subject = 'Your HUGEpic - %s' % start.strftime('%B %Y')
-            else:
-                subject = 'Your HUGEpics - %s' % start.strftime('%B %Y')
-            self.redis.hset('emailssent', email, start.strftime('%Y%m'))
-            q = Queue(connection=self.redis)
-            logging.info('Enqueueing email to %s', email)
-            job = q.enqueue(
-                send_newsletter,
-                email,
-                subject,
+            html = self.render_string('_newsletter_email.html', **data)
+            if isinstance(html, str):
+                html = unicode(html, 'utf-8')
+            html = premailer.transform(
                 html,
-                #plain_body=email_body,
-                debug=self.application.settings['debug']
+                base_url=self.base_url
             )
-            html = html.replace(
-                '<!-- BODY -->',
-                '<h1>POSTED!</h1>' +
-                '<a href="%s">Back</a>' %
-                self.reverse_url('admin_newsletter')
-            )
+            if self.get_argument('preview', False):
+                pass
+            else:
+                if len(images) == 1:
+                    subject = 'Your HUGEpic - %s' % start.strftime('%B %Y')
+                else:
+                    subject = 'Your HUGEpics - %s' % start.strftime('%B %Y')
+                self.redis.hset('emailssent', email, start.strftime('%Y%m'))
+                q = Queue(connection=self.redis)
+                logging.info('Enqueueing email to %s', email)
+                job = q.enqueue(
+                    send_newsletter,
+                    email,
+                    subject,
+                    html,
+                    #plain_body=email_body,
+                    debug=self.application.settings['debug']
+                )
+                html = html.replace(
+                    '<!-- BODY -->',
+                    '<h1>POSTED!</h1>' +
+                    '<a href="%s">Back</a>' %
+                    self.reverse_url('admin_newsletter')
+                )
 
-        self.write(html)
+            self.write(html)
         self.finish()
 
     @tornado.gen.engine
