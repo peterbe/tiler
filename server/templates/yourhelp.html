@@ -5,7 +5,7 @@
 {% block main %}
 <div class="row">
   <div class="span12">
-    <h2>I need your help</h2>
+    <h2>Your help is needed</h2>
 
     <h4>This project has no marketing budget and therefore need your help to become
     successful.
@@ -26,7 +26,18 @@
       {% end %}
       on your blog, Facebook, Twitter etc.</li>
       <li>Follow <a href="https://twitter.com/hugepic">@hugepic</a> on
-        Twitter and re-tweet uploads you like.</li>
+        Twitter and re-tweet uploads you like.
+
+	{% if yourtweets %}
+	<br/>Your pictures tweeted...
+	<ul>
+	  {% for title, tweet in yourtweets %}
+	  <li><a href="https://twitter.com/hugepic/status/{{ tweet }}">{{ title }}</a></li>
+	  {% end %}
+	</ul>
+	{% end %}
+      </li>
+
       <li>Contribute <a href="{{ reverse_url('feedback') }}">feedback, thoughts and bug reports</a></li>
     </ul>
 

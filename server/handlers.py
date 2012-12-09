@@ -1996,9 +1996,29 @@ class UnsubscribeHandler(BaseHandler):
 @route(r'/yourhelp/', 'yourhelp')
 class YourHelpHandler(BaseHandler):
 
+    @tornado.web.asynchronous
+    @tornado.gen.engine
     def get(self):
         data = {
+            'yourtweets': [],
         }
+        if self.get_current_user():
+            cursor = self.db.images.find(
+                {'user': self.get_current_user(),
+                 'title': {'$exists': True}},
+                ('fileid', 'title')
+            )
+            image = yield motor.Op(cursor.next_object)
+            while image:
+                if image['title']:
+                    tweet = self.redis.hget('tweets', image['fileid'])
+                    if tweet:
+                        data['yourtweets'].append((
+                            image['title'],
+                            tweet,
+                        ))
+                image = yield motor.Op(cursor.next_object)
+
         self.render('yourhelp.html', **data)
 
 
