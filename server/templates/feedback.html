@@ -2,6 +2,21 @@
 
 {% block page_title %}Feedback on {{ PROJECT_TITLE }}{% end %}
 
+{% block extra_js %}
+{% module ScriptTags('feedback.js') %}
+{% end %}
+
+{% block extra_head %}
+<style>
+input.error {
+    border-color: rgb(185, 74, 72);
+    box-shadow: 0px 1px 1px rgba(0, 0, 0, 0.075) inset;
+    color: rgb(185, 74, 72);
+}
+</style>
+{% end %}
+
+
 {% block main %}
 <div class="row">
   <div class="span12">
@@ -30,6 +45,12 @@
     </select>
     <label>Comment</label>
     <textarea name="comment" rows="5" style="width:500px"></textarea>
+    {% if not user %}
+    <label>Prove that you're human</label>
+    <span class="hp-question"></span>:
+    <input type="hidden" class="hp-question" name="hp-question">
+    <input name="hp">
+    {% end %}
     <div class="form-actions">
       <button type="submit" class="btn btn-primary">Submit feedback</button>
       <button type="button" class="btn" onclick="location.href='/'">Cancel</button>

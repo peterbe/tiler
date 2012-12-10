@@ -3,6 +3,7 @@ import stat
 import urllib
 import json
 import uuid
+import random
 import logging
 import hashlib
 import time
@@ -2022,8 +2023,38 @@ class YourHelpHandler(BaseHandler):
         self.render('yourhelp.html', **data)
 
 
+class HoneypotMixin(object):
+
+    questions = {
+        'What is one plus one?': ['2', 'two'],
+        'What is two plus two?': ['4', 'four'],
+        'Do cows eat fish every day?': ['no'],
+        'What is two minus one?': ['1', 'one'],
+        'What is 12 plus zero?': ['12', 'twelve'],
+        'Which is bigger, Canada or Vatican?': ['canada'],
+        'Which weighs more an elephant or an ant?': ['elephant'],
+    }
+
+    def get_random_question(self):
+        return random.choice(self.questions.keys())
+
+    def check_question_answer(self, question, answer):
+        answer = answer.lower().strip()
+        for alternative in self.questions[question]:
+            if alternative == answer:
+                return True
+        return False
+
+
+@route(r'/feedback/hp.json', 'feedback_honeypot')
+class FeedbackHoneypotHandler(BaseHandler, HoneypotMixin):
+
+    def get(self):
+        self.write({'question': self.get_random_question()})
+
+
 @route(r'/feedback/', 'feedback')
-class FeedbackHandler(BaseHandler):
+class FeedbackHandler(BaseHandler, HoneypotMixin):
 
     def get(self):
         user = self.get_current_user()
@@ -2043,6 +2074,13 @@ class FeedbackHandler(BaseHandler):
             self.write('No comment? Go back and try again')
             self.finish()
             return
+
+        if not self.get_current_user():
+            question = self.get_argument('hp-question')
+            answer = self.get_argument('hp')
+            if not self.check_question_answer(question, answer):
+                raise tornado.web.HTTPError(400, "Failed the human test")
+
         document = {
             'comment': self.get_argument('comment').strip(),
             'name': self.get_argument('name', u'').strip(),
