@@ -2115,4 +2115,4 @@ class PageNotFoundHandler(BaseHandler):
                 new_url += '?%s' % self.request.query
             self.redirect(new_url)
             return
-        raise tornado.web.HTTPError(404, path)
+        raise tornado.web.HTTPError(404)
