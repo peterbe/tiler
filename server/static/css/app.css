@@ -12,3 +12,7 @@ body {
 img.gravatar {
     border-radius: 16px;
 }
+
+footer p {
+    text-align: center;
+}

@@ -4,7 +4,6 @@
     <style type="text/css">
     .example img { float:left; margin-right: 5px; }
     .example .url { font-weight: bold; }
-    .footer-stats { float:right }
     </style>
     {% end %}
 
@@ -43,7 +42,7 @@
 
 {% block extra_footer %}
     {% if total_count %}
-      <p class="footer-stats">
+      <p>
         <strong>{% module ShowFileSize(total_bytes_served) %} served</strong>
         and <strong>{% module Thousands(total_hits) %} hits</strong>
         {% if total_hits_this_month and total_hits_this_month != total_hits %}
