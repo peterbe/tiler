@@ -307,7 +307,37 @@ class HomeHandler(BaseHandler, ThumbnailGridRendererMixin):
             data['total_bytes_served'] = stats['total_bytes_served']
             data['total_hits'] = stats['total_hits']
             data['total_hits_this_month'] = stats['total_hits_this_month']
+
+        data['featured_past'] = yield tornado.gen.Task(
+            self.get_featured_past
+        )
+
         self.render('index.html', **data)
+
+    @tornado.gen.engine
+    def get_featured_past(self, callback):
+        cache_key = 'featured_past'
+        fileid = self.redis.get(cache_key)
+        if fileid is None:
+            then = datetime.datetime.utcnow() - datetime.timedelta(days=30)
+            search = {'title': {'$exists': True},
+                      'date': {'$lt': then}}
+            total_count = yield motor.Op(self.db.images.find(search).count)
+            cursor = (
+                self.db.images.find(search)
+                .sort([('date', -1)])
+                .limit(1)
+                .skip(random.randint(0, total_count - 1))
+            )
+            featured_past = yield motor.Op(cursor.next_object)
+            fileid = featured_past['fileid']
+            self.redis.setex(cache_key, fileid, 60 * 60)
+        else:
+            featured_past = yield motor.Op(
+                self.db.images.find_one,
+                {'fileid': fileid}
+            )
+        callback(featured_past)
 
     def get_stats_by_fileids(self, fileids, user=None):
         total_hits = total_hits_this_month = total_bytes_served = 0

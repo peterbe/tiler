@@ -4,6 +4,8 @@
     <style type="text/css">
     .example img { float:left; margin-right: 5px; }
     .example .url { font-weight: bold; }
+    .featured-past { float: right; }
+
     </style>
     {% end %}
 
@@ -26,6 +28,16 @@
       {% else %}
         {% if show_hero_unit %}
         <div class="hero-unit">
+
+          {% if featured_past %}
+          <div class="featured-past">
+            <h4>A blast from the past!</h4>
+            <a href="{{ reverse_url('image', featured_past['fileid']) }}" title="{{ featured_past['title'] }}"
+               ><img class="thumbnail img-polaroid" src="{% module ThumbnailURL(featured_past['fileid'], 100, featured_past.get('contenttype', 'png')) %}" alt="{{ featured_past['title'] }}"></a>
+            {% module ShowMetaData(featured_past) %}
+          </div>
+          {% end %}
+
           <h1>{{ PROJECT_TITLE }}</h1>
           <p>When you want to upload HUGE pictures that you can zoom in on like a map.</p>
           <p><a href="{{ reverse_url('gettingstarted') }}" class="btn btn-primary btn-large">Get started &raquo;</a></p>
