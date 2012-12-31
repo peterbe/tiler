@@ -15,7 +15,7 @@
         <ol>
           {% for number, image in this_month_hits %}
           <li>
-          <strong>{{ number }} hits</strong>
+          <strong>{% module Thousands(number) %} hits</strong>
 	  <a href="{{ reverse_url('image', image['fileid']) }}"
           ><img class="thumbnail img-polaroid"
 	        src="{% module ThumbnailURL(image['fileid'], 100, image.get('contenttype', 'png')) %}"
@@ -30,7 +30,7 @@
         <ol>
           {% for number, image in hits %}
           <li>
-          <strong>{{ number }} hits</strong>
+          <strong>{% module Thousands(number) %} hits</strong>
 	  <a href="{{ reverse_url('image', image['fileid']) }}"
           ><img class="thumbnail img-polaroid"
                 src="{% module ThumbnailURL(image['fileid'], 100, image.get('contenttype', 'png')) %}"
