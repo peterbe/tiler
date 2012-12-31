@@ -6,10 +6,16 @@
 <div class="row">
   <div class="span12">
     <div class="page-header">
+      <p style="float:right">
+        <a href=..>Back to image admin page</a>
+      </p>
       <h2>Tweet This</h2>
     </div>
-    <p style="float:right">
-      <a href=..>Back to image admin page</a>
+
+      <p style="float:right">
+	  <a href="{{ reverse_url('image', image['fileid']) }}"
+          ><img class="thumbnail img-polaroid" src="{% module ThumbnailURL(image['fileid'], 300, image.get('contenttype', 'png')) %}" alt="Screenshot"></a>
+
     </p>
     <form action="." method="post">
       <label>Tweet text</label>

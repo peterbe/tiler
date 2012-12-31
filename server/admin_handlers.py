@@ -838,7 +838,7 @@ class AdminTweetImageHandler(AdminBaseHandler):
         text = image['title'] + ' '
         text += self.base_url
         text += self.reverse_url('image', image['fileid']) + '\n'
-        text += '@hugepic\n'
+        text += '#hugepic\n'
         data = {
             'image': image,
             'text': text,
@@ -903,7 +903,8 @@ class AdminTweetImageHandler(AdminBaseHandler):
             id_ = job.result
             self.redis.hset('tweets', fileid, id_)
 
-        url = self.reverse_url('admin_image', fileid)
+        #url = self.reverse_url('admin_image', fileid)
+        url = self.reverse_url('admin_home')
         self.redirect(url)
 
 
