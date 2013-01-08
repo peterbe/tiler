@@ -7,5 +7,7 @@
    ><a href="{{ reverse_url('admin_feedbacks') }}">Feedback</a></li>
   <li {% if page_on == '/admin/newsletter/' %}class="active"{% end %}
    ><a href="{{ reverse_url('admin_newsletter') }}">Newsletter</a></li>
+  <li {% if page_on == '/admin/banned/' %}class="active"{% end %}
+   ><a href="{{ reverse_url('admin_banned') }}">Banned</a></li>
   <li><a href="/">Exit Admin</a></li>
 {% end %}

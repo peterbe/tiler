@@ -43,6 +43,7 @@
       <dt>User:</dt>
       <dd>
         <a href="mailto:{{ image['user'] }}">{{ image['user'] }}</a>
+        <a href="{{ reverse_url('admin_banned') }}?email={{ image['user'] }}" style="font-size:.8em">ban</a>
         <a href="#" class="resend" style="font-size:.8em">resend</a>
         {% if unsubscribed %}
         <strong style="font-size:.8em;color:red">Note! has unsubscribed</strong>

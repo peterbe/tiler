@@ -1,0 +1,57 @@
+{% extends "admin_base.html" %}
+
+{% block extra_head %}
+<style type="text/css">
+</style>
+{% end %}
+
+{% block extra_js %}
+<script type="text/javascript">
+$(function() {
+});
+</script>
+{% end %}
+
+
+{% block main %}
+<div class="row">
+  <div class="span12">
+    <h2>Ban someone</h2>
+    <form method="post" action=".">
+    <label>Email</label>
+    <input type="text" name="email" placeholder="Email address" {% if email %}value="{{ email }}"{% end %}>
+    <label>Comment</label>
+    <textarea name="comment" rows="3"></textarea>
+    <br>
+    <button type="submit" class="btn">Submit</button>
+    </form>
+
+    <h2>Banned Users</h2>
+
+    <table class="table table-condensed">
+    <thead>
+      <tr>
+        <td>Email</td>
+        <td>Comment</td>
+        <td>Upload attempts</td>
+        <td>Sign-in attempts</td>
+        <td>Existing pictures</td>
+        <td>When</td>
+      </tr>
+    </thead>
+    <tbody>
+    {% for ban in banned %}
+      <tr>
+        <td>{{ ban['email'] }}</td>
+        <td>{{ ban['comment'] }}</td>
+        <td>{{ ban.get('upload_attempts', 0) }}</td>
+        <td>{{ ban.get('signin_attempts', 0) }}</td>
+        <td>{{ ban['pictures'] }}</td>
+        <td>{{ ban['date'] }}</td>
+      </tr>
+    {% end %}
+    </tbody>
+    </table>
+  </div>
+</div>
+{% end %}

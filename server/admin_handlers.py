@@ -1100,3 +1100,45 @@ class AdminPreviewNewsletterHandler(AdminBaseHandler):
             image = yield motor.Op(cursor.next_object)
 
         callback((start, people))
+
+
+@route('/admin/banned/', name='admin_banned')
+class AdminBannedHandler(AdminBaseHandler):
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def get(self):
+        data = {}
+        data['email'] = self.get_argument('email', u'')
+        banned = []
+        cursor = (
+            self.db.banned.find({})
+            .sort([('date', -1)])
+        )
+        ban = yield motor.Op(cursor.next_object)
+        while ban:
+            search = {
+                'user': ban['email']
+            }
+            ban['pictures'] = (
+                yield motor.Op(self.db.images.find(search).count)
+            )
+            banned.append(ban)
+            ban = yield motor.Op(cursor.next_object)
+
+        data['banned'] = banned
+        self.render('admin/banned.html', **data)
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def post(self):
+        email = self.get_argument('email')
+        comment = self.get_argument('comment', u'').strip()
+
+        document = {
+            'comment': comment,
+            'email': self.get_argument('email', u'').strip(),
+            'date': datetime.datetime.utcnow(),
+        }
+        yield motor.Op(self.db.banned.insert, document)
+        self.redirect(self.reverse_url('admin_banned'))

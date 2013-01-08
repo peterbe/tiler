@@ -1,6 +1,7 @@
 import uuid
 import tornado.web
 import tornado.gen
+import motor
 from tornado_utils.routes import route
 from handlers import (
     BaseHandler,
@@ -81,6 +82,18 @@ class APIUploadHandler(APIBaseHandler,
         self.user = self.get_user(key)
         if not self.user:
             raise tornado.web.HTTPError(403, "Key not recognized")
+
+        search = {'email': self.user}
+        banned = yield motor.Op(self.db.banned.find(search).count)
+        if banned:
+            yield motor.Op(
+                self.db.banned.update,
+                {'email': self.user},
+                {'$inc': {'upload_attempts': 1}}
+            )
+            raise tornado.web.HTTPError(412, "Banned")
+
+        # XXX banned?
         response = yield tornado.gen.Task(self.run_preview, url)
         if 'error' in response:
             self.write(response)

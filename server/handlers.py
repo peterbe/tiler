@@ -1148,6 +1148,7 @@ class ImageDeleteHandler(BaseHandler, DeleteImageMixin):
 class UploadHandler(BaseHandler):
 
     def get(self):
+
         self.render('upload.html')
 
 
@@ -1254,8 +1255,20 @@ class PreviewUploadHandler(UploadHandler, PreviewMixin):
     @tornado.gen.engine
     def post(self):
         url = self.get_argument('url')
-        if not self.get_current_user():
+        current_user = self.get_current_user()
+        if not current_user:
             raise tornado.web.HTTPError(403, "You must be logged in")
+
+        search = {'email': current_user}
+        banned = yield motor.Op(self.db.banned.find(search).count)
+        if banned:
+            yield motor.Op(
+                self.db.banned.update,
+                {'email': current_user},
+                {'$inc': {'upload_attempts': 1}}
+            )
+            raise tornado.web.HTTPError(412, "Banned")
+
         response = yield tornado.gen.Task(self.run_preview, url)
         self.write(response)
         self.finish()
@@ -1683,6 +1696,17 @@ class BrowserIDAuthLoginHandler(BaseHandler):
             struct = tornado.escape.json_decode(response.body)
             assert struct['email']
             email = struct['email']
+
+            search = {'email': email}
+            banned = yield motor.Op(self.db.banned.find(search).count)
+            if banned:
+                yield motor.Op(
+                    self.db.banned.update,
+                    {'email': email},
+                    {'$inc': {'signin_attempts': 1}}
+                )
+                raise tornado.web.HTTPError(412, "Banned")
+
             self.set_secure_cookie('user', email, expires_days=90)
         else:
             struct = {'error': 'Email could not be verified'}
