@@ -1911,6 +1911,13 @@ class AboutHandler(BaseHandler):
         self.render('about.html')
 
 
+@route(r'/tweets', 'tweets')
+class TweetsHandler(BaseHandler):
+
+    def get(self):
+        self.render('tweets.html')
+
+
 @route(r'/privacy', 'privacy')
 class PrivacyHandler(BaseHandler):
 
