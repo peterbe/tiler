@@ -1092,11 +1092,14 @@ class AdminPreviewNewsletterHandler(AdminBaseHandler):
         image = yield motor.Op(cursor.next_object)
         people = collections.defaultdict(list)
         while image:
-            self.attach_hits_info(image, now=start)
-            self.attach_comments_info(image)
-            self.attach_tweet_info(image)
-            self.attach_bytes_served_info(image)
-            people[image['user']].append(image)
+            if not 'width' in image:
+                logging.warning("Image %r doesn't have a width", image)
+            else:
+                self.attach_hits_info(image, now=start)
+                self.attach_comments_info(image)
+                self.attach_tweet_info(image)
+                self.attach_bytes_served_info(image)
+                people[image['user']].append(image)
             image = yield motor.Op(cursor.next_object)
 
         callback((start, people))
