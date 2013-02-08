@@ -10,7 +10,7 @@ def slow_writer(f, buf):
     f.write(buf)
 
 def download(url, destination,
-            follow_redirects=True, request_timeout=600):
+            follow_redirects=False, request_timeout=600):
     _error = _effective_url = None
     with open(destination, 'wb') as destination_file:
         hdr = cStringIO.StringIO()
