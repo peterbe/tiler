@@ -445,6 +445,7 @@ class ImageHandler(BaseHandler):
             date_timestamp = metadata['date_timestamp']
             width = metadata['width']
             cdn_domain = metadata.get('cdn_domain')
+            wrap = metadata.get('wrap', False)
 
         else:
             logging.info("Meta data cache miss (%s)" % fileid)
@@ -462,6 +463,7 @@ class ImageHandler(BaseHandler):
             width = document['width']
             cdn_domain = document.get('cdn_domain', None)
             date_timestamp = time.mktime(document['date'].timetuple())
+            wrap = document.get('wrap', False)
 
             metadata = {
                 'content_type': content_type,
@@ -471,6 +473,7 @@ class ImageHandler(BaseHandler):
                 'date_timestamp': date_timestamp,
                 'width': width,
                 'cdn_domain': cdn_domain,
+                'wrap': wrap,
             }
             if document.get('ranges'):
                 metadata['ranges'] = document['ranges']
@@ -479,6 +482,7 @@ class ImageHandler(BaseHandler):
                 json.dumps(metadata),
                 60 * 60  # * 24
             )
+        no_wrap = not wrap
 
         now = time.mktime(datetime.datetime.utcnow().timetuple())
         age = now - date_timestamp
@@ -568,6 +572,9 @@ class ImageHandler(BaseHandler):
         else:
             default_location = None
 
+        # so it becomes a element data boolean
+        no_wrap = no_wrap and 'true' or 'false'
+
         self.render(
             'image.html',
             fileid=fileid,
@@ -589,6 +596,8 @@ class ImageHandler(BaseHandler):
             hide_annotations=hide_annotations,
             hide_download_counter=hide_download_counter,
             default_location=default_location,
+            no_wrap=no_wrap,
+            wrap=wrap,
         )
 
 
@@ -796,6 +805,7 @@ class ImageMetadataMixin(object):
 
         title = self.get_argument('title', u'')
         description = self.get_argument('description', u'')
+        wrap = bool(int(self.get_argument('wrap', 0)))
 
         if len(title) > 200:
             raise tornado.web.HTTPError(400, "title max. 200 characters")
@@ -804,7 +814,8 @@ class ImageMetadataMixin(object):
 
         data = {
             'title': title,
-            'description': description
+            'description': description,
+            'wrap': wrap,
         }
         yield motor.Op(
             self.db.images.update,
@@ -815,7 +826,9 @@ class ImageMetadataMixin(object):
         metadata_key = 'metadata:%s' % document['fileid']
         self.redis.delete(metadata_key)
         self.redis.hdel('metadata-rendered', fileid)
-
+        data['_needs_refresh'] = (
+            document.get('wrap', False) != data['wrap']
+        )
         callback(data)
 
 

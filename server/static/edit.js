@@ -178,15 +178,23 @@ var Editing = (function() {
   // Saving edit modal
   $('.modal a.btn-primary').click(function() {
     var data = {
-       title: _title_input.val(),
+      title: _title_input.val(),
       description: $('#edit-modal textarea[name="description"]').val(),
+      wrap: $('#edit-modal input[name="wrap"]:checked').length,
       _xsrf: $('#edit-modal input[name="_xsrf"]').val()
     };
     $.post(pathname + '/edit', data, function(response) {
-      $('#edit-modal .label-success').show(100);
-      setTimeout(function() {
-        $('#edit-modal .label-success:visible').fadeOut('slow');
-      }, 3 * 1000);
+      if (response._needs_refresh) {
+        $('#edit-modal .needs-refresh').show(100);
+        setTimeout(function() {
+          location.href = pathname;
+        }, 1.5 * 1000);
+      } else {
+        $('#edit-modal .label-success').show(100);
+        setTimeout(function() {
+          $('#edit-modal .label-success:visible').fadeOut('slow');
+        }, 3 * 1000);
+      }
     });
     return false;
   });

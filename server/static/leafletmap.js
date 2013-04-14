@@ -437,12 +437,14 @@ $(function() {
   var hide_download_counter = $body.data('hide-download-counter');
   var hide_annotations = $body.data('hide-annotations');
   var default_location = $body.data('default-location');
+  var no_wrap = $body.data('no-wrap');
 
   var tiles_url = prefix + '/tiles/' + image + '/256/{z}/{x},{y}.' + extension;
   var map_layer = new L.TileLayer(tiles_url, {
       minZoom: range_min,
       maxZoom: range_max,
-      zoomControl: range_max > range_min
+      zoomControl: range_max > range_min,
+      noWrap: no_wrap
     });
 
   if (!hide_download_counter) {
