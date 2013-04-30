@@ -144,14 +144,15 @@ class AdminHomeHandler(AdminBaseHandler):
             .limit(page_size)
             .skip(skip)
         )
-        image = yield motor.Op(cursor.next_object)
+        #image = yield motor.Op(cursor.next_object)
         images = []
         count = 0
         total_bytes_served = 0
         total_hits = 0
         _shown_image_ids = []
 
-        while image:
+        while (yield cursor.fetch_next):
+            image = cursor.next_object()
             if not image.get('width'):
                 if image['contenttype'] == 'image/jpeg':
                     extension = 'jpg'
@@ -201,7 +202,7 @@ class AdminHomeHandler(AdminBaseHandler):
                 image['comments'] = comments
             self.attach_tweet_info(image)
             images.append(image)
-            image = yield motor.Op(cursor.next_object)
+            #image = yield motor.Op(cursor.next_object)
 
         pagination = None
         if total_count > count:
@@ -222,8 +223,9 @@ class AdminHomeHandler(AdminBaseHandler):
         data['bytes_downloaded'] = self.redis.get('bytes_downloaded')
 
         cursor = self.db.images.find({}, ('fileid',))
-        image = yield motor.Op(cursor.next_object)
-        while image:
+        #image = yield motor.Op(cursor.next_object)
+        while (yield cursor.fetch_next):
+            image = cursor.next_object()
             if image['_id'] not in _shown_image_ids:
                 served = self.redis.hget('bytes_served', image['fileid'])
                 if served is not None:
@@ -231,7 +233,7 @@ class AdminHomeHandler(AdminBaseHandler):
                 hits = self.redis.get('hits:%s' % image['fileid'])
                 if hits is not None:
                     total_hits += int(hits)
-            image = yield motor.Op(cursor.next_object)
+            #image = yield motor.Op(cursor.next_object)
         data['total_bytes_served'] = total_bytes_served
         data['total_hits'] = total_hits
         total_comments = yield motor.Op(self.db.comments.find().count)
@@ -255,10 +257,11 @@ class AdminFeedbackHandler(AdminBaseHandler):
             #.skip(skip)
         )
         feedbacks = []
-        feedback = yield motor.Op(cursor.next_object)
-        while feedback:
+        #feedback = yield motor.Op(cursor.next_object)
+        while (yield cursor.fetch_next):
+            feedback = cursor.next_object()
             feedbacks.append(feedback)
-            feedback = yield motor.Op(cursor.next_object)
+            #feedback = yield motor.Op(cursor.next_object)
         data['feedbacks'] = feedbacks
         self.render('admin/feedbacks.html', **data)
 
@@ -795,13 +798,14 @@ class AdminRenderAllThumbnailsHandler(AdminBaseHandler):
             .limit(page_size)
             .skip(skip)
         )
-        image = yield motor.Op(cursor.next_object)
+        #image = yield motor.Op(cursor.next_object)
         images = []
         count = 0
-        while image:
+        while (yield cursor.fetch_next):
+            image = cursor.next_object()
             images.append(image)
             count += 1
-            image = yield motor.Op(cursor.next_object)
+            #image = yield motor.Op(cursor.next_object)
 
         pagination = None
         if total_count > count:
@@ -994,8 +998,10 @@ class AdminPreviewNewsletterHandler(AdminBaseHandler):
                     self.db.comments.find({'image': image['_id']})
                     .sort([('date', -1)])
                 )
-                comment = yield motor.Op(cursor.next_object)
-                while comment:
+
+                #comment = yield motor.Op(cursor.next_object)
+                while (yield cursor.fetch_next):
+                    comment = cursor.next_object()
                     if comment['zoom'] <= 2:
                         template = '/%.2f/%.1f/%.1f'
                     elif comment['zoom'] >= 5:
@@ -1011,7 +1017,7 @@ class AdminPreviewNewsletterHandler(AdminBaseHandler):
                     )
 
                     image['comments'].append(comment)
-                    comment = yield motor.Op(cursor.next_object)
+                    #comment = yield motor.Op(cursor.next_object)
 
             if len(images) > 1:
                 total_area = sum(
@@ -1089,9 +1095,10 @@ class AdminPreviewNewsletterHandler(AdminBaseHandler):
             self.db.images.find(search)
             .sort([('date', -1)])
         )
-        image = yield motor.Op(cursor.next_object)
+        #image = yield motor.Op(cursor.next_object)
         people = collections.defaultdict(list)
-        while image:
+        while (yield cursor.fetch_next):
+            image = cursor.next_object()
             if not 'width' in image:
                 logging.warning("Image %r doesn't have a width", image)
             else:
@@ -1100,7 +1107,7 @@ class AdminPreviewNewsletterHandler(AdminBaseHandler):
                 self.attach_tweet_info(image)
                 self.attach_bytes_served_info(image)
                 people[image['user']].append(image)
-            image = yield motor.Op(cursor.next_object)
+            #image = yield motor.Op(cursor.next_object)
 
         callback((start, people))
 
@@ -1118,8 +1125,9 @@ class AdminBannedHandler(AdminBaseHandler):
             self.db.banned.find({})
             .sort([('date', -1)])
         )
-        ban = yield motor.Op(cursor.next_object)
-        while ban:
+        #ban = yield motor.Op(cursor.next_object)
+        while (yield cursor.fetch_next):
+            ban = cursor.next_object()
             search = {
                 'user': ban['email']
             }
@@ -1127,7 +1135,7 @@ class AdminBannedHandler(AdminBaseHandler):
                 yield motor.Op(self.db.images.find(search).count)
             )
             banned.append(ban)
-            ban = yield motor.Op(cursor.next_object)
+            #ban = yield motor.Op(cursor.next_object)
 
         data['banned'] = banned
         self.render('admin/banned.html', **data)

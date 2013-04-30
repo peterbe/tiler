@@ -213,17 +213,18 @@ class ThumbnailGridRendererMixin(object):
             .limit(page_size)
             .skip(skip)
         )
-        image = yield motor.Op(cursor.next_object)
+        #image = yield motor.Op(cursor.next_object)
         row = []
         count = 0
-        while image:
+        while (yield cursor.fetch_next):
+            image = cursor.next_object()
             if image.get('width') and image.get('featured', True):
                 row.append(image)
             elif not image.get('width'):
                 print image
 
             count += 1
-            image = yield motor.Op(cursor.next_object)
+            #image = yield motor.Op(cursor.next_object)
 
             if len(row) == 3:
                 data['recent_images_rows'].append(row)
@@ -329,7 +330,8 @@ class HomeHandler(BaseHandler, ThumbnailGridRendererMixin):
                 .limit(1)
                 .skip(random.randint(0, total_count - 1))
             )
-            featured_past = yield motor.Op(cursor.next_object)
+            (yield cursor.fetch_next)
+            featured_past = cursor.next_object()
             fileid = featured_past['fileid']
             self.redis.setex(cache_key, fileid, 60 * 60)
         else:
@@ -378,11 +380,12 @@ class HomeHandler(BaseHandler, ThumbnailGridRendererMixin):
             if user:
                 search['user'] = user
             cursor = self.db.images.find(search, ('fileid',))
-            image = yield motor.Op(cursor.next_object)
-            while image:
+            #image = yield motor.Op(cursor.next_object)
+            while (yield cursor.fetch_next):
+                image = cursor.next_object()
                 self.redis.lpush(cache_key, image['fileid'])
                 fileids.append(image['fileid'])
-                image = yield motor.Op(cursor.next_object)
+                #image = yield motor.Op(cursor.next_object)
         callback(fileids)
 
 
@@ -758,7 +761,6 @@ class ImageCommentingHandler(BaseHandler):
         yield motor.Op(
             self.db.comments.insert,
             comment_,
-            safe=False
         )
         self.redis.hincrby('comments', fileid, 1)
         self.redis.hset('name', current_user, name)
@@ -773,9 +775,10 @@ class ImageCommentingHandler(BaseHandler):
     def get_comments(self, _id, callback):
         comments = []
         cursor = self.db.comments.find({'image': _id})
-        comment = yield motor.Op(cursor.next_object)
+        #comment = yield motor.Op(cursor.next_object)
         _now = datetime.datetime.utcnow()
-        while comment:
+        while (yield cursor.fetch_next):
+            comment = cursor.next_object()
             comments.append({
                 'html': self.get_comment_html(comment),
                 'center': comment['center'],
@@ -783,7 +786,7 @@ class ImageCommentingHandler(BaseHandler):
                 'zoom': comment['zoom'],
                 'ago': smartertimesince(comment['date'], _now),
             })
-            comment = yield motor.Op(cursor.next_object)
+            #comment = yield motor.Op(cursor.next_object)
         callback(comments)
 
     def get_comment_html(self, comment):
@@ -883,11 +886,12 @@ class ImageAnnotationsHandler(AnnotationBaseHandler):
         if not document:
             raise tornado.web.HTTPError(404, "Not found")
         cursor = self.db.annotations.find({'image': document['_id']})
-        annotation = yield motor.Op(cursor.next_object)
+        #annotation = yield motor.Op(cursor.next_object)
         annotations = []
         current_user = self.get_current_user()
 
-        while annotation:
+        while (yield cursor.fetch_next):
+            annotation = cursor.next_object()
             yours = annotation['user'] == current_user
             data = {
                 'id': str(annotation['_id']),
@@ -902,7 +906,7 @@ class ImageAnnotationsHandler(AnnotationBaseHandler):
                 data['radius'] = annotation['radius']
 
             annotations.append(data)
-            annotation = yield motor.Op(cursor.next_object)
+            #annotation = yield motor.Op(cursor.next_object)
 
         data = {'annotations': annotations}
         self.write(data)
@@ -968,7 +972,6 @@ class ImageAnnotationsHandler(AnnotationBaseHandler):
         _id = yield motor.Op(
             self.db.annotations.insert,
             annotation,
-            safe=False
         )
         annotation['_id'] = _id
 
@@ -1252,7 +1255,7 @@ class PreviewMixin(object):
         )
         if expected_size:
             document['size'] = expected_size
-        yield motor.Op(self.db.images.insert, document, safe=False)
+        yield motor.Op(self.db.images.insert, document)
 
         callback({
             'fileid': fileid,
@@ -1533,8 +1536,9 @@ class DownloadMixin(object):
                 self.db.images.find(replica_search)
                 .limit(1)
             )
-            replica_image = yield motor.Op(cursor.next_object)
-            if replica_image:
+            #replica_image = yield motor.Op(cursor.next_object)
+            if (yield cursor.fetch_next):
+                replica_image = cursor.next_object()
                 url = self.base_url + self.reverse_url(
                     'image',
                     replica_image['fileid']
@@ -2023,8 +2027,9 @@ class PopularityHandler(BaseHandler):
         hits = []
         bytes = []
         cursor = self.db.images.find({}, ('fileid', 'title'))
-        image = yield motor.Op(cursor.next_object)
-        while image:
+        #image = yield motor.Op(cursor.next_object)
+        while (yield cursor.fetch_next):
+            image = cursor.next_object()
             image = {'fileid': image['fileid'],
                      'title': image.get('title')}
             fileid = image['fileid']
@@ -2042,7 +2047,7 @@ class PopularityHandler(BaseHandler):
             number = self.redis.hget('bytes_served', fileid)
             if number is not None:
                 bytes.append((int(number), image))
-            image = yield motor.Op(cursor.next_object)
+            #image = yield motor.Op(cursor.next_object)
 
         hits.sort(reverse=True)
         this_month.sort(reverse=True)
@@ -2083,8 +2088,10 @@ class YourHelpHandler(BaseHandler):
                  'title': {'$exists': True}},
                 ('fileid', 'title')
             )
-            image = yield motor.Op(cursor.next_object)
-            while image:
+
+            #image = yield motor.Op(cursor.next_object)
+            while (yield cursor.fetch_next):
+                image = cursor.next_object()
                 if image['title']:
                     tweet = self.redis.hget('tweets', image['fileid'])
                     if tweet:
@@ -2092,7 +2099,7 @@ class YourHelpHandler(BaseHandler):
                             image['title'],
                             tweet,
                         ))
-                image = yield motor.Op(cursor.next_object)
+                #image = yield motor.Op(cursor.next_object)
 
         self.render('yourhelp.html', **data)
 

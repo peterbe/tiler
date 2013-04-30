@@ -43,7 +43,7 @@ class Application(tornado.web.Application):
     @property
     def db(self):
         if not self._db_connection:
-            self._db_connection = motor.MotorConnection().open_sync()
+            self._db_connection = motor.MotorClient().open_sync()
         return self._db_connection[settings.DATABASE_NAME]
 
     def __init__(self, database_name=None, optimize_static_content=None):
