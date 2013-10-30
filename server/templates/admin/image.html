@@ -161,6 +161,24 @@
         <a href="{{ reverse_url('admin_tweet', image['fileid']) }}">Not yet</a>
         {% end %}
       </dd>
+
+      {% if originals %}
+      <dt>Originals:</dt>
+      <dd>
+        <ul>
+        {% for name, size in originals %}
+          <li>{{ name }}: {% module ShowFileSize(size) %}</li>
+        {% end %}
+          <li>Total: {% module ShowFileSize(original_total_size) %}</li>
+        </ul>
+        <form class="delete-originals"
+              action="{{ reverse_url('admin_delete_originals', image['fileid']) }}"
+              method="post">
+        <button class="btn btn-mini" type="submit">delete these</button>
+        </form>
+      </dd>
+      {% end %}
+
     </dl>
 
     <a href="#" class="delete-image" style="font-size:.8em">Delete</a>

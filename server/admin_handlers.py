@@ -331,6 +331,31 @@ class AdminImageHandler(AdminBaseHandler):
             'unsubscribed': unsubscribed,
         }
 
+        if image['contenttype'] == 'image/jpeg':
+            extension = 'jpg'
+        elif image['contenttype'] == 'image/png':
+            extension = 'png'
+        else:
+            raise NotImplementedError
+        original = find_original(
+            image['fileid'],
+            self.application.settings['static_path'],
+            extension,
+        )
+        if original:
+            original_dir = os.path.dirname(original)
+            originals = []
+            for filename in os.listdir(original_dir):
+                filepath = os.path.join(original_dir, filename)
+                originals.append(
+                    (filename, os.stat(filepath)[stat.ST_SIZE])
+                )
+            data['originals'] = originals
+            data['original_total_size'] = sum(x[1] for x in originals)
+        else:
+            data['original_total_size'] = 0
+            data['originals'] = []
+
         self.render('admin/image.html', **data)
 
 
@@ -909,6 +934,40 @@ class AdminTweetImageHandler(AdminBaseHandler):
 
         #url = self.reverse_url('admin_image', fileid)
         url = self.reverse_url('admin_home')
+        self.redirect(url)
+
+
+@route('/admin/(?P<fileid>\w{9})/delete-originals/', name='admin_delete_originals')
+class AdminDeleteImageOriginalsHandler(AdminBaseHandler):
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def post(self, fileid):
+        image = yield motor.Op(
+            self.db.images.find_one,
+            {'fileid': fileid}
+        )
+        if not image:
+            raise tornado.web.HTTPError(404, "File not found")
+
+        if image['contenttype'] == 'image/jpeg':
+            extension = 'jpg'
+        elif image['contenttype'] == 'image/png':
+            extension = 'png'
+        else:
+            raise NotImplementedError
+        original = find_original(
+            image['fileid'],
+            self.application.settings['static_path'],
+            extension,
+        )
+        original_dir = os.path.dirname(original)
+        originals = []
+        for filename in os.listdir(original_dir):
+            filepath = os.path.join(original_dir, filename)
+            os.remove(filepath)
+
+        url = self.reverse_url('admin_image', fileid)
         self.redirect(url)
 
 
