@@ -23,6 +23,7 @@ from utils import (
     make_thumbnail
 )
 from awsuploader import update_tiles_metadata
+from awsdownloader import download_original
 from tweeter import tweet_with_media
 from emailer import send_newsletter
 import settings
@@ -969,6 +970,54 @@ class AdminDeleteImageOriginalsHandler(AdminBaseHandler):
 
         url = self.reverse_url('admin_image', fileid)
         self.redirect(url)
+
+
+@route('/admin/(?P<fileid>\w{9})/recover-original/', name='admin_recover_original')
+class AdminRecoverImageOriginalHandler(AdminBaseHandler):
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def post(self, fileid):
+        image = yield motor.Op(
+            self.db.images.find_one,
+            {'fileid': fileid}
+        )
+        if not image:
+            raise tornado.web.HTTPError(404, "File not found")
+
+        if image['contenttype'] == 'image/jpeg':
+            extension = 'jpg'
+        elif image['contenttype'] == 'image/png':
+            extension = 'png'
+        else:
+            raise NotImplementedError(image['contenttype'])
+
+        image = fileid[:1] + '/' + fileid[1:3] + '/' + fileid[3:]
+
+        q = Queue('default', connection=self.redis)
+        job = q.enqueue(
+            download_original,
+            os.path.join('uploads', image + '.' + extension),
+            self.application.settings['static_path'],
+            settings.ORIGINALS_BUCKET_ID
+        )
+
+        delay = 1
+        total_delay = 0
+        ioloop_instance = tornado.ioloop.IOLoop.instance()
+        while job.result is None:
+            yield tornado.gen.Task(
+                ioloop_instance.add_timeout,
+                time.time() + delay
+            )
+            delay += 1
+            total_delay += delay
+            if total_delay > 5:
+                break
+
+        url = self.reverse_url('admin_image', fileid)
+        self.redirect(url)
+
 
 
 @route('/admin/newsletter/', name='admin_newsletter')

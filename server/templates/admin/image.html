@@ -162,8 +162,8 @@
         {% end %}
       </dd>
 
-      {% if originals %}
       <dt>Originals:</dt>
+      {% if originals %}
       <dd>
         <ul>
         {% for name, size in originals %}
@@ -175,6 +175,14 @@
               action="{{ reverse_url('admin_delete_originals', image['fileid']) }}"
               method="post">
         <button class="btn btn-mini" type="submit">delete these</button>
+        </form>
+      </dd>
+      {% else %}
+      <dd>
+        <form class="recover-original"
+              action="{{ reverse_url('admin_recover_original', image['fileid']) }}"
+              method="post">
+        <button class="btn btn-mini" type="submit">recover original</button>
         </form>
       </dd>
       {% end %}
