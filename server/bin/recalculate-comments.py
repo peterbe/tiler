@@ -20,7 +20,7 @@ def run(*args):
         settings.REDIS_HOST,
         settings.REDIS_PORT
     )
-    connection = motor.MotorConnection().open_sync()
+    connection = motor.MotorClient().open_sync()
     db = connection.tiler
 
     try:

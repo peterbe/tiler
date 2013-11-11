@@ -21,7 +21,7 @@ def upload_original(fileid, extension, static_path, bucket_id):
     conn = S3Connection(settings.AWS_ACCESS_KEY, settings.AWS_SECRET_KEY)
     bucket = conn.lookup(bucket_id) or conn.create_bucket(bucket_id, location=Location.EU)
 
-    db_connection = motor.MotorConnection().open_sync()
+    db_connection = motor.MotorClient().open_sync()
     db = db_connection[settings.DATABASE_NAME]
 
     original = find_original(fileid, static_path, extension)
@@ -86,7 +86,7 @@ def upload_all_tiles(fileid, static_path, bucket_id, max_count=0,
     bucket = conn.lookup(bucket_id) or conn.create_bucket(bucket_id, location=Location.EU)
     #bucket.set_acl('public-read')
 
-    db_connection = motor.MotorConnection().open_sync()
+    db_connection = motor.MotorClient().open_sync()
     db = db_connection[settings.DATABASE_NAME]
 
     document = yield motor.Op(
