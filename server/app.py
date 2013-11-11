@@ -130,6 +130,7 @@ def main():  # pragma: no cover
 
     http_server = tornado.httpserver.HTTPServer(Application())
     print "Starting tornado on port", options.port
+    logging.info("Starting tornado on port :%s" % options.port)
     http_server.listen(options.port)
     try:
         tornado.ioloop.IOLoop.instance().start()
