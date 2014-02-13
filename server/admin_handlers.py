@@ -126,6 +126,20 @@ class AdminBaseHandler(BaseHandler):
         served = self.redis.hget('bytes_served', image['fileid'])
         image['bytes_served'] = served and int(served) or 0
 
+    def attach_original_info(self, image):
+        if image['contenttype'] == 'image/jpeg':
+            extension = 'jpg'
+        elif image['contenttype'] == 'image/png':
+            extension = 'png'
+        else:
+            return False
+        original_path = find_original(
+            image['fileid'],
+            self.application.settings['static_path'],
+            extension
+        )
+        image['has_original'] = bool(original_path)
+
 
 @route('/admin/', name='admin_home')
 class AdminHomeHandler(AdminBaseHandler):
@@ -202,6 +216,7 @@ class AdminHomeHandler(AdminBaseHandler):
                 comments = int(comments)
                 image['comments'] = comments
             self.attach_tweet_info(image)
+            self.attach_original_info(image)
             images.append(image)
             #image = yield motor.Op(cursor.next_object)
 

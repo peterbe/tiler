@@ -29,6 +29,7 @@
         <td><abbr title="Comments">Cmts</abbr></td>
         <td>Hits</td>
         <td>Served</td>
+        <td>O<sup>*</sup></td>
         <td># tiles</td>
       </tr>
     </thead>
@@ -90,6 +91,12 @@
         {% module ShowFileSize(image['bytes_served']) %}
         {% else %}0{% end %}
       </td>
+      <td>{% if image['has_original'] %}
+      <i class="icon-ok"></i>
+      {% else %}
+      <i class="icon-minus-sign"></i>
+      {% end %}
+      </td>
       <td {% if image['too_few_tiles'] %}style="color:red"{% else %}style="color:green"{% end %}>
         {{ image['found_tiles'] }}
         /
@@ -102,6 +109,8 @@
     </table>
 
       {% include "../_pagination.html" %}
+
+      <p><sup>*</sup> Still has a original upload locally.</p>
   </div>
 </div>
 {% end %}
