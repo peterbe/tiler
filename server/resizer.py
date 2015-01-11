@@ -6,13 +6,21 @@ import subprocess
 
 
 def resize_image(path, width, save_path):
-    _resize_tool = 'resize'
+    # _resize_tool = 'resize'
+    # cmd = (
+    #     'convert %s -%s %d %s' %
+    #     (path, _resize_tool, width, save_path)
+    # )
+    # cmd = 'MAGICK_THREAD_LIMIT=1 ' + cmd
+    # see https://github.com/jcupitt/libvips/issues/216
+    save_path = os.path.abspath(save_path)
     cmd = (
-        'convert %s -%s %d %s' %
-        (path, _resize_tool, width, save_path)
+        'vipsthumbnail %s -s %d -o %s' % (
+            path, width, save_path
+        )
     )
-    cmd = 'MAGICK_THREAD_LIMIT=1 ' + cmd
     print "CMD", repr(cmd)
+    t0 = time.time()
     process = subprocess.Popen(
         cmd,
         shell=True,
@@ -20,6 +28,8 @@ def resize_image(path, width, save_path):
         stderr=subprocess.PIPE
     )
     out, err = process.communicate()
+    t1 = time.time()
+    print "CMD TOOK", t1 - t0
     if err:
         logging.warning("resizer: %s" % err)
     return save_path

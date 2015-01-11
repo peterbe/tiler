@@ -25,5 +25,6 @@ The code consists of the following major pieces:
 * the client-side browsing is all thanks to [Leaflet](http://leafletjs.com/)
     * with the annotation drawing thanks to [Leaflet.Draw](https://github.com/jacobtoye/Leaflet.draw)
 * Amazon S3 and CloudFront keeps all the images except for temporary copies
+* vipsthumbnail from [VIPS](http://www.vips.ecs.soton.ac.uk/index.php?title=VIPS)
 
 More has been [written about the technical here](http://www.peterbe.com/plog/introducing-hugepic.io).

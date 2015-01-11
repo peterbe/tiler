@@ -1555,7 +1555,7 @@ class DownloadMixin(object):
                 return
 
             if not document.get('size'):
-                data['size'] = os.stat(destination)[stat.ST_SIZE]
+                data['size'] = document['size'] = os.stat(destination)[stat.ST_SIZE]
 
             yield motor.Op(
                 self.db.images.update,
